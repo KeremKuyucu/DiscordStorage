@@ -1,7 +1,10 @@
-import 'package:discordstorage/util.dart';
+import 'dart:io';
+import 'package:discordstorage/utilities.dart';
 import 'package:http/http.dart' as http;
+import 'package:discordstorage/services/jsonFunctions.dart';
 
 class FileUploader {
+  JsonFunctions jsonFunctions = JsonFunctions();
   Future<void> fileUpload(String webhookUrl, String filePath, int partNo, String message, int silme, String linklerDosyasi) async {
     try {
       var request = http.MultipartRequest('POST', Uri.parse(webhookUrl));
@@ -27,7 +30,7 @@ class FileUploader {
           print('Error writing to postlog.txt: $e');
         }
 
-        Map<String, String> ids = idBul(responseData);
+        Map<String, String> ids = jsonFunctions.idBul(responseData);
         String channelId2 = ids['channelId'] ?? '';
         String messageId2 = ids['messageId'] ?? '';
 
@@ -35,14 +38,14 @@ class FileUploader {
           if (silme == 1) {
             try {
               File(linklerDosyasi).writeAsStringSync(
-                  jsonWrite(partNo, channelId2, messageId2) + '\n',
+                  jsonFunctions.jsonWrite(partNo, channelId2, messageId2) + '\n',
                   mode: FileMode.append);
               print('Link written to $linklerDosyasi');
             } catch (e) {
               print('Error writing to $linklerDosyasi: $e');
             }
           } else {
-            String jsonData = jsonWrite(partNo, channelId2, messageId2);
+            String jsonData = jsonFunctions.jsonWrite(partNo, channelId2, messageId2);
             print(jsonData);
             // Global değişkenleri güncellemek yerine, bu değerleri döndürmeyi veya
             // sınıfın üye değişkenleri olarak saklamayı düşünebilirsiniz.

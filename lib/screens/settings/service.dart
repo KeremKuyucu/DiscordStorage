@@ -28,3 +28,4 @@ class SettingsService {
     await _prefs.remove('category_id');
   }
 }
+

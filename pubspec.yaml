@@ -1,7 +1,7 @@
 name: discordstorage
 description: "DiscordStorage new version"
 publish_to: 'none'
-version: 0.1.0-alpha
+version: 0.1.1-alpha
 
 environment:
   sdk: ^3.7.2
@@ -14,6 +14,7 @@ dependencies:
   nyxx: ^6.6.1
   http: ^1.4.0
   path: ^1.9.1
+  path_provider: ^2.1.5
   salomon_bottom_bar: ^3.3.2
   package_info_plus: ^8.3.0
   easy_url_launcher: ^0.0.7
@@ -21,6 +22,9 @@ dependencies:
   markdown: ^7.3.0
   flutter_html: ^3.0.0
   shared_preferences: ^2.5.3
+  permission_handler: ^12.0.0+1
+  file_picker: ^10.1.9
+  crypto: ^3.0.6
 
 
 dev_dependencies:

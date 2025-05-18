@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:markdown/markdown.dart' as md;
-import 'package:discordstorage/util.dart'; // EasyLauncher burada mı tanımlı?
 import 'package:easy_url_launcher/easy_url_launcher.dart';
 
 class UpdateChecker {
@@ -32,11 +32,15 @@ class UpdateChecker {
         if (data.isNotEmpty) {
           final latestRelease = data[0];
           String remoteVersion = latestRelease['tag_name'] ?? 'N/A';
+          if (remoteVersion.startsWith('v')) {
+            remoteVersion = remoteVersion.substring(1);
+          }
           String updateNotes = latestRelease['body'] ?? 'Yama notları mevcut değil';
           String html = md.markdownToHtml(updateNotes);
           String releasePageUrl = 'https://github.com/$repoOwner/$repoName/releases';
 
           if (remoteVersion != localVersion) {
+            print('Yeni sürüm mevcut: $remoteVersion');
             _showUpdateDialog(localVersion, remoteVersion, html, releasePageUrl);
           }
         }
