@@ -1,0 +1,653 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+import 'package:http/http.dart' as http;
+import 'package:nyxx/nyxx.dart';
+import 'package:path/path.dart' as path;
+
+// Global değişkenler
+int partSize = 8 * 1024 * 1024; // 8MB
+String? channelId, messageId, createdWebhook, guildId, categoryId, droppedFilePath, filePath;
+
+// Config dosyasını okuma
+Map<String, dynamic> parseConfigFile() {
+  Map<String, dynamic> configData = {};
+  File configFile = File('config.json');
+
+  if (configFile.existsSync()) {
+    try {
+      String contents = configFile.readAsStringSync();
+      configData = jsonDecode(contents);
+    } catch (e) {
+      print('Error reading config.json: $e');
+    }
+  } else {
+    configData = {
+      'BOT_TOKEN': 'bot token',
+      'guild_id': 'your guild id',
+      'category_id': 'your storage category id'
+    };
+
+    // Dosyayı oluştur ve kaydet
+    try {
+      configFile.writeAsStringSync(jsonEncode(configData));
+      print('config.json file not found, created: config.json');
+    } catch (e) {
+      print('Error creating config.json: $e');
+    }
+  }
+
+  return configData;
+}
+
+// Response sınıfı
+class Response {
+  String data = '';
+}
+
+// Link sınıfı
+class Link {
+  int partNumber;
+  String channelId;
+  String messageId;
+
+  Link(this.partNumber, this.channelId, this.messageId);
+}
+
+// Dosya seçme penceresi (Dart'ta platform-specific kod gerektirir)
+Future<String?> openDragDropWindow() async {
+  print('Dart\'ta dosya seçme işlemi için lütfen dosya yolunu girin:');
+  String? input = stdin.readLineSync();
+  return input;
+}
+
+// JSON işlemleri
+Map<String, String> idBul(String jsonStr) {
+  String channelId = '';
+  String messageId = '';
+
+  try {
+    Map<String, dynamic> jsonResponse = jsonDecode(jsonStr);
+
+    if (jsonResponse.containsKey('channel_id')) {
+      channelId = jsonResponse['channel_id'];
+    }
+
+    if (jsonResponse.containsKey('id')) {
+      messageId = jsonResponse['id'];
+    }
+
+    if (jsonResponse.containsKey('embeds') && jsonResponse['embeds'].isNotEmpty) {
+      for (var embed in jsonResponse['embeds']) {
+        if (embed.containsKey('id') && embed.containsKey('channel_id')) {
+          channelId = embed['channel_id'];
+          messageId = embed['id'];
+        }
+      }
+    }
+  } catch (e) {
+    print('JSON parse error: $e');
+  }
+
+  return {'channelId': channelId, 'messageId': messageId};
+}
+
+String jsonWrite(int partNo, String channelId, String messageId) {
+  Map<String, dynamic> jsonObj = {
+    'partNo': partNo,
+    'channelId': channelId,
+    'messageId': messageId
+  };
+
+  return jsonEncode(jsonObj);
+}
+
+String getSecondLine(String filePath) {
+  try {
+    List<String> lines = File(filePath).readAsLinesSync();
+    if (lines.length >= 2) {
+      return lines[1];
+    }
+  } catch (e) {
+    print('Error reading file: $e');
+  }
+  return '';
+}
+
+// HTTP işlemleri
+Future<void> fileUpload(String webhookUrl, String filePath, int partNo, String message, int silme, String linklerDosyasi) async {
+  try {
+    var request = http.MultipartRequest('POST', Uri.parse(webhookUrl));
+    request.fields['content'] = message;
+    request.files.add(await http.MultipartFile.fromPath('file', filePath));
+
+    var response = await request.send();
+    var responseData = await response.stream.bytesToString();
+
+    if (response.statusCode == 200) {
+      if (silme == 1) {
+        try {
+          File(filePath).deleteSync();
+        } catch (e) {
+          print('File deletion error: $filePath');
+        }
+      }
+
+      File('postlog.txt').writeAsStringSync('Webhook Response: $responseData\n', mode: FileMode.append);
+      Map<String, String> ids = idBul(responseData);
+      String channelId2 = ids['channelId'] ?? '';
+      String messageId2 = ids['messageId'] ?? '';
+
+      if (messageId2.isNotEmpty) {
+        if (silme == 1) {
+          File(linklerDosyasi).writeAsStringSync(
+              jsonWrite(partNo, channelId2, messageId2) + '\n',
+              mode: FileMode.append);
+        } else {
+          print(jsonWrite(partNo, channelId2, messageId2));
+          channelId = channelId2;
+          messageId = messageId2;
+        }
+      } else {
+        print('URL not found. Please check the error in the submissionlog.txt file.');
+      }
+    } else {
+      print('File sending error: ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Error in fileUpload: $e');
+  }
+}
+
+Future<int> fileDownload(String url, String fileName) async {
+  try {
+    var response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      File(fileName).writeAsBytesSync(response.bodyBytes);
+      return 0;
+    } else {
+      print('Download failed with status code: ${response.statusCode}');
+      return 1;
+    }
+  } catch (e) {
+    print('Error downloading file: $e');
+    return 1;
+  }
+}
+
+Future<bool> checkToken(String token) async {
+  try {
+    var response = await http.get(
+      Uri.parse('https://discord.com/api/v10/users/@me'),
+      headers: {'Authorization': 'Bot $token'},
+    );
+
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      print('Token is invalid. HTTP Code: ${response.statusCode}');
+      return false;
+    }
+  } catch (e) {
+    print('Error checking token: $e');
+    return false;
+  }
+}
+
+Future<String> getFileUrl(String channelId, String messageId) async {
+  Map<String, dynamic> configData = parseConfigFile();
+  String botToken = configData['BOT_TOKEN'];
+
+  try {
+    var response = await http.get(
+      Uri.parse('https://discord.com/api/v10/channels/$channelId/messages/$messageId'),
+      headers: {'Authorization': 'Bot $botToken'},
+    );
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+      if (jsonResponse.containsKey('attachments') && jsonResponse['attachments'].isNotEmpty) {
+        return jsonResponse['attachments'][0]['url'];
+      } else {
+        print('No file found in the message!');
+      }
+    } else {
+      print('Error getting file URL: ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Error in getFileUrl: $e');
+  }
+
+  return '';
+}
+
+// Discord API işlemleri (nyxx kütüphanesi ile)
+Future<void> createWebhook(INyxxRest bot, String channelId, String name) async {
+  try {
+    IWebhook webhook = await bot.api.channels.createWebhook(
+      Snowflake.parse(channelId),
+      WebhookBuilder()..name = name,
+    );
+    print('Webhook has been created: ${webhook.name} (ID: ${webhook.id})');
+    String webhookUrl = 'https://discord.com/api/webhooks/${webhook.id}/${webhook.token}';
+    print('Webhook URL: $webhookUrl');
+    createdWebhook = webhookUrl;
+  } catch (e) {
+    print('Failed to create webhook: $e');
+  }
+}
+
+Future<void> createChannel(INyxxRest bot, String channelName, String guildId, String categoryId) async {
+  try {
+    ChannelBuilder builder = ChannelBuilder();
+    builder.name = channelName;
+    builder.type = ChannelType.guildText;
+    
+    if (categoryId != 'category_id') {
+      builder.parentId = Snowflake.parse(categoryId);
+    }
+
+    IChannel channel = await bot.api.guilds.createGuildChannel(
+      Snowflake.parse(guildId),
+      builder,
+    );
+
+    String channelName = channel.name ?? '';
+    String channelId = channel.id.toString();
+    print('Name of the room: $channelName, ID: $channelId');
+    await createWebhook(bot, channelId, 'File Uploader');
+  } catch (e) {
+    print('Error creating channel: $e');
+  }
+}
+
+Future<String> getMessages(INyxxRest bot, String channelId, int limit) async {
+  try {
+    List<IMessage> messages = await bot.api.channels.getChannelMessages(
+      Snowflake.parse(channelId),
+      limit: limit,
+    ).toList();
+
+    String contents = '';
+    for (var message in messages) {
+      contents += message.content + '\n';
+    }
+    return contents;
+  } catch (e) {
+    print('Error getting messages: $e');
+    return '';
+  }
+}
+
+// Dosya işlemleri
+Future<String> getFileHash(String filename) async {
+  try {
+    ProcessResult result = await Process.run('CertUtil', ['-hashfile', filename, 'SHA256']);
+    if (result.exitCode == 0) {
+      List<String> lines = result.stdout.toString().split('\n');
+      if (lines.length >= 2) {
+        String hashLine = lines[1].replaceAll(RegExp(r'\s'), '');
+        return hashLine;
+      }
+    }
+    print('Error: Could not extract hash from CertUtil output.');
+  } catch (e) {
+    print('Exception occurred while getting file hash: $e');
+  }
+  return '';
+}
+
+Future<List<String>> getCloudFiles(INyxxRest bot, String guildId, String categoryId) async {
+  List<String> cloudFiles = [];
+  try {
+    List<IChannel> channels = await bot.api.guilds.getGuildChannels(Snowflake.parse(guildId));
+    for (var channel in channels) {
+      if (channel.parentId != null && channel.parentId.toString() == categoryId) {
+        cloudFiles.add(channel.id.toString());
+      }
+    }
+  } catch (e) {
+    print('Error receiving channels: $e');
+  }
+  return cloudFiles;
+}
+
+Future<void> chooseFile(INyxxRest bot, String guildId, String categoryId) async {
+  List<String> cloudFiles = await getCloudFiles(bot, guildId, categoryId);
+
+  while (true) {
+    print('\x1B[1;33mAvailable files:\x1B[0m');
+    print('\x1B[1;34mFiles in the Cloud:\x1B[0m');
+
+    for (int i = 0; i < cloudFiles.length; i++) {
+      String obj = await getMessages(bot, cloudFiles[i], 1);
+      try {
+        Map<String, dynamic> jsonObj = jsonDecode(obj);
+        print('${i + 1}. ${jsonObj['fileName']}');
+      } catch (e) {
+        print('\x1B[1;31mThe file in the cloud is not in JSON format, it is passed...\x1B[0m');
+        continue;
+      }
+    }
+
+    print('\x1B[1;34m-----------------------------------------------------------------------');
+    print('\x1B[1;33mPlease make your selection (enter number):\x1B[0m');
+
+    String? input = stdin.readLineSync();
+    int selection = int.tryParse(input ?? '') ?? 0;
+
+    if (selection > 0 && selection <= cloudFiles.length) {
+      String obj = await getMessages(bot, cloudFiles[selection - 1], 1);
+      try {
+        Map<String, dynamic> data = jsonDecode(obj);
+        String channelId = data['channelId'];
+        String messageId = data['messageId'];
+        print('oda id: $channelId mesaj id: $messageId');
+        String downloadLink = await getFileUrl(channelId, messageId);
+        String downloadingFile = 'downloaded_file';
+
+        if (await fileDownload(downloadLink, downloadingFile) == 0) {
+          print('File downloaded successfully: $downloadingFile');
+
+          String newFileName = getSecondLine(downloadingFile);
+          if (newFileName.isNotEmpty) {
+            newFileName += '.txt';
+            File(downloadingFile).renameSync(newFileName);
+            filePath = newFileName;
+            print('File name changed: $newFileName');
+          } else {
+            print('\x1B[1;31mThe second line could not be read. Failed to change file name.\x1B[0m');
+          }
+        } else {
+          print('\x1B[1;31mFile download failed.\x1B[0m');
+        }
+      } catch (e) {
+        print('\x1B[1;31mThe cloud file is not in JSON format, it is being passed...\x1B[0m');
+        continue;
+      }
+      break;
+    } else {
+      print('\x1B[1;31mInvalid election.\x1B[0m');
+    }
+  }
+}
+
+// Diğer yardımcı fonksiyonlar
+void printProgressBar(int current, int total, {int barWidth = 50}) {
+  double progress = current / total;
+  int pos = (barWidth * progress).toInt();
+  StringBuffer bar = StringBuffer('[');
+  for (int i = 0; i < barWidth; i++) {
+    if (i < pos) {
+      bar.write('=');
+    } else if (i == pos) {
+      bar.write('>');
+    } else {
+      bar.write(' ');
+    }
+  }
+  bar.write('] ${(progress * 100).toInt()}% ($current/$total)');
+  stdout.write('\r$bar');
+  if (current == total) {
+    print('');
+  }
+}
+
+// Ana fonksiyonlar
+Future<void> splitFileAndUpload(String filePath, INyxxRest bot, {int partSize = 8 * 1024 * 1024}) async {
+  String fileName = path.basename(filePath);
+  String linksTxt = '$filePath_links.txt';
+  String tempDir = 'C:\\Users\\Public\\Documents\\discordStorage\\temp\\';
+
+  // Temp klasörü yoksa oluştur
+  Directory tempDirectory = Directory(tempDir);
+  if (!await tempDirectory.exists()) {
+    await tempDirectory.create(recursive: true);
+  }
+
+  try {
+    int availablePartNumber = 0;
+    String hash = '';
+
+    File file = File(filePath);
+    if (!await file.exists()) {
+      print('Error: Could not open file: $filePath');
+      return;
+    }
+
+    int fileSize = await file.length();
+    int totalParts = (fileSize + partSize - 1) ~/ partSize;
+
+    File controlFile = File(linksTxt);
+    if (await controlFile.exists()) {
+      List<String> lines = await controlFile.readAsLines();
+      if (lines.length >= 3) {
+        hash = lines[2];
+        createdWebhook = lines.length >= 4 ? lines[3] : '';
+        if (hash == await getFileHash(filePath)) {
+          for (int i = 4; i < lines.length; i++) {
+            try {
+              Map<String, dynamic> jsonObj = jsonDecode(lines[i]);
+              availablePartNumber = jsonObj['partNo'];
+            } catch (e) {
+              print('JSON parsing error in links file: $e');
+              continue;
+            }
+          }
+        } else {
+          print('Error: A different file with the same name detected. Please delete or move the other file.');
+          return;
+        }
+      }
+    } else {
+      await createChannel(bot, fileName, guildId!, categoryId!);
+      await Future.delayed(Duration(seconds: 3));
+
+      await File(linksTxt).writeAsString(
+          '$totalParts\n$fileName\n${await getFileHash(filePath)}\n$createdWebhook\n');
+    }
+
+    RandomAccessFile raf = await file.open(mode: FileMode.read);
+    for (int i = availablePartNumber; i < totalParts; i++) {
+      int currentPartSize = min(partSize, fileSize - i * partSize);
+      await raf.setPosition(i * partSize);
+      List<int> buffer = await raf.read(currentPartSize);
+      String partFilename = '$tempDir$fileName.part${i + 1}';
+
+      await File(partFilename).writeAsBytes(buffer);
+
+      String message = 'File part: ${i + 1}';
+      await fileUpload(createdWebhook!, partFilename, i + 1, message, 1, linksTxt);
+
+      printProgressBar(i + 1, totalParts);
+    }
+    await raf.close();
+  } catch (e) {
+    print('\x1B[1;31mException caught in splitFileandUpload: $e\x1B[0m');
+  }
+
+  String message1 = '$fileName\'s download links\n'
+      '```\n'
+      'File Meaning:\n'
+      '1. Line : Total Number of Parts\n'
+      'Line 2 : File Name\n'
+      'Line 3 : Hash Value of File\n'
+      'Line 4 : Webhook Link\n'
+      'Next Lines : Track Number, Room Id, Message Id\n'
+      '```';
+  await fileUpload(createdWebhook!, linksTxt, 0, message1, 0, linksTxt);
+
+  Map<String, dynamic> message2 = {
+    'channelId': channelId,
+    'fileName': fileName,
+    'messageId': messageId
+  };
+  String messageString = jsonEncode(message2);
+  
+  // Webhook ile mesaj gönderme
+  var response = await http.post(
+    Uri.parse(createdWebhook!),
+    body: {'content': messageString},
+  );
+
+  print('\x1B[1;34mDon\'t write a message in the room.\x1B[0m');
+  print('\x1B[1;33mIf there is a part that is not deleted, it may not be loaded, please check that part and manually\nload it and add the partoda and message id where it should be.\x1B[0m');
+  print('\x1B[1;33mPlease do not keep this backup as the only backup of the file, but as an alternative.\x1B[0m');
+  print('\x1B[1;34mAs they say: If your data is not in three places, it does not exist.\x1B[0m');
+  print('\x1B[1;31m-----------------------------------------------------------------------');
+}
+
+Future<void> mergeFiles(INyxxRest bot, String linksFileName) async {
+  File linksFile = File(linksFileName);
+  if (!await linksFile.exists()) {
+    print('Error: Could not open links file: $linksFileName');
+    return;
+  }
+
+  List<String> lines = await linksFile.readAsLines();
+  if (lines.isEmpty) {
+    print('Error: Links file is empty!');
+    return;
+  }
+
+  int totalParts = int.tryParse(lines[0]) ?? 0;
+  if (totalParts <= 0 || lines.length < 4) {
+    print('Error: Invalid links file format!');
+    return;
+  }
+
+  String targetFileName = lines[1];
+  String hash = lines[2];
+  String webhook = lines[3];
+  List<Link> links = [];
+
+  for (int i = 4; i < lines.length; i++) {
+    try {
+      Map<String, dynamic> jsonObj = jsonDecode(lines[i]);
+      int partNumber = jsonObj['partNo'];
+      String channelId = jsonObj['channelId'];
+      String messageId = jsonObj['messageId'];
+      links.add(Link(partNumber, channelId, messageId));
+    } catch (e) {
+      print('Error parsing link: ${lines[i]}');
+      continue;
+    }
+  }
+
+  if (links.length != totalParts) {
+    print('Error: Number of links does not match total parts!');
+    return;
+  }
+
+  links.sort((a, b) => a.partNumber.compareTo(b.partNumber));
+
+  File targetFile = File(targetFileName);
+  IOSink sink = targetFile.openWrite();
+
+  int downloadedParts = 0;
+  List<String> partFiles = [];
+
+  for (Link link in links) {
+    String newFileName = 'part${link.partNumber}.txt';
+    partFiles.add(newFileName);
+    String url = await getFileUrl(link.channelId, link.messageId);
+    await fileDownload(url, newFileName);
+    downloadedParts++;
+    printProgressBar(downloadedParts, totalParts);
+  }
+
+  int mergedParts = 0;
+  for (String partFileName in partFiles) {
+    File partFile = File(partFileName);
+    if (await partFile.exists()) {
+      List<int> bytes = await partFile.readAsBytes();
+      sink.add(bytes);
+      mergedParts++;
+      printProgressBar(mergedParts, totalParts);
+      await partFile.delete();
+    } else {
+      print('Error: Could not open part file: $partFileName');
+    }
+  }
+
+  await sink.close();
+
+  if (await getFileHash(targetFileName) != hash) {
+    print('Error: File hash mismatch! The downloaded file may be corrupted.');
+  }
+}
+
+// Ana fonksiyon
+Future<void> main() async {
+  Map<String, dynamic> configData = parseConfigFile();
+  if (!await checkToken(configData['BOT_TOKEN'])) {
+    print('Failed to validate the token!');
+    return;
+  }
+
+  // Nyxx bot oluşturma
+  final bot = NyxxFactory.createNyxxRest(configData['BOT_TOKEN']);
+  guildId = configData['guild_id'];
+  categoryId = configData['category_id'];
+
+  // Bot başlatma
+  await bot.connect();
+  print('Bot connected!');
+
+  // Geri kalan kod aynı kalacak
+  while (true) {
+    print('\x1B[1;31mProgram owner is Kerem Kuyucu.\x1B[1;33m Github: Keremlolgg/DiscordStorage');
+    print('\x1B[1;34m-----------------------------------------------------------------------');
+    print('\x1B[1;33mPlease enter \'Backup\', \'Download\' or \'upload-error-file\':\n1. Backup\n2. Download\n3. upload-error-file');
+    
+    String? input = stdin.readLineSync();
+    
+    if (input != '1' && input != '2' && input != '3') {
+      print('\x1B[1;31mGeçersiz seçim. Please enter \'Backup\', \'Download\' or \'upload-error-file\':\x1B[0m');
+      continue;
+    }
+
+    if (input == '1') {
+      // Upload
+      print('\x1B[1;34mPlease encrypt sensitive data before uploading for your security.\x1B[0m');
+      print('\x1B[1;33mPlease select the file you want to upload.\x1B[0m');
+      filePath = await openDragDropWindow();
+      print(filePath);
+      if (filePath != null && filePath!.isNotEmpty) {
+        await splitFileAndUpload(filePath!, bot);
+      }
+    } else if (input == '2') {
+      // Download
+      print('\x1B[1;33mSelect file source:\n filename_link.txt Or Cloud Save\nYour choice: \x1B[0m');
+      String? sourceInput = stdin.readLineSync();
+
+      if (sourceInput == '1') {
+        await chooseFile(bot, guildId!, categoryId!); // Cloud dosyalarından seç
+      } else if (sourceInput == '2') {
+        filePath = await openDragDropWindow(); // Yerel dosya seç
+      } else {
+        print('\x1B[1;31mInvalid choice.\x1B[0m');
+      }
+
+      if (filePath != null && filePath!.isNotEmpty) {
+        await mergeFiles(bot, filePath!);
+        print('\x1B[1;32mFile downloaded successfully!\x1B[0m');
+      } else {
+        print('\x1B[1;31mFile path is empty. Operation cancelled.\x1B[0m');
+      }
+    } else if (input == '3') {
+      // Error file upload
+      print('Please enter a webhook link to upload the faulty file: (Please create an error file room and create a webhook link from there.)');
+      String? hataliwebhook = stdin.readLineSync();
+      print('Please select the incorrect file.');
+      print('\x1B[1;33mPlease wait one second.\x1B[0m');
+      await Future.delayed(Duration(seconds: 1));
+      filePath = await openDragDropWindow();
+      print(filePath);
+      if (hataliwebhook != null && filePath != null && filePath!.isNotEmpty) {
+        await fileUpload(hataliwebhook, filePath!, 1, '$filePath ', 0, 'postlog.txt');
+      }
+    }
+  }
+}
