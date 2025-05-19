@@ -1,0 +1,48 @@
+name: DiscordStorage
+description: "DiscordStorage new version"
+publish_to: 'none'
+version: 0.1.1-alpha
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_local_notifications: ^19.2.1
+  http: ^1.4.0
+  path: ^1.9.1
+  path_provider: ^2.1.5
+  salomon_bottom_bar: ^3.3.2
+  package_info_plus: ^8.3.0
+  easy_url_launcher: ^0.0.7
+  theme_mode_builder: ^2.0.0
+  markdown: ^7.3.0
+  flutter_html: ^3.0.0
+  shared_preferences: ^2.5.3
+  permission_handler: ^12.0.0+1
+  file_picker: ^10.1.9
+  crypto: ^3.0.6
+  universal_io: ^2.2.2
+  uuid: ^4.5.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.14.3
+  flutter_lints: ^5.0.0
+
+flutter_icons:
+  android: {
+    "generate": true
+  }
+  windows: {
+    "generate": true
+  }
+  image_path: "assets/logo.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
