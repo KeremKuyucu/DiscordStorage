@@ -1,16 +1,24 @@
-# discordstorage
+# DiscordStorage (Flutter Sürümü)
 
-DiscordStorage mobile Application
+- **DiscordStorage**, dosyalarınızı Discord üzerinden güvenli ve kolay bir şekilde saklamanızı sağlayan bir mobil uygulamadır. Uygulama Flutter ile geliştirilmiştir ve tamamen Türkçe arayüze sahiptir. İngilizce dil desteği yakında eklenecektir.
+- Daha önce Cpp ile yaptığım bu projeyi Flutter ile tekrar yaptım.
+- Yakında İngilizce Dil eklenecek alpha sürümü için sadece Türkçe.
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## ⚠️ Uyarı
 
-A few resources to get you started if this is your first Flutter project:
+Bir dosya yüklendikten sonra **ilgili Discord kanalına manuel mesaj göndermeyin**. Bu, bulut sisteminin çalışmasını bozar.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+---
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 🚀 Özellikler
+
+- 📁 Discord sunucularında dosya saklama
+- 🔒 Bot token’ı yerel olarak cihazda saklanır (config dosyası kullanılmaz)
+- 📤 Parçalara ayırarak dosya yükleme
+- 📜 `postlog.txt` ile otomatik yükleme geçmişi takibi
+- 📎 Yüklenen dosyaların bağlantı bilgileri `.json` olarak kaydedilir
+- 📱 Mobil uyumlu, sade ve kullanıcı dostu Flutter arayüzü
+
+---
