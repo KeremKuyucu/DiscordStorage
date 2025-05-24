@@ -1,4 +1,5 @@
-bool debugMode = false;
+bool isDarkMode = false;
+
 int selectedIndex=0;
 String channelId = '';
 String messageId = '';

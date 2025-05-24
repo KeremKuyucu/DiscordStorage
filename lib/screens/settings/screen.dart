@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
-import 'package:DiscordStorage/screens/main/screen.dart';
-import 'package:DiscordStorage/utilities.dart';
-import 'package:DiscordStorage/services/token_checker_service.dart';
+import 'package:theme_mode_builder/theme_mode_builder.dart';
+import 'package:DiscordStorage/services/utilities.dart';
+import 'package:DiscordStorage/screens/settings/service.dart';
+import 'package:DiscordStorage/services/bottom_bar_service.dart';
 import 'package:DiscordStorage/services/discord_service.dart';
 import 'package:DiscordStorage/services/file_system_service.dart';
+import 'package:DiscordStorage/services/logger_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -18,56 +18,33 @@ class _SettingsPageState extends State<SettingsPage> {
   final _botTokenController = TextEditingController();
   final _guildIdController = TextEditingController();
   final _categoryIdController = TextEditingController();
-
   final DiscordService discordService = DiscordService();
-
-  late FileSystemService fileSystemService = FileSystemService();
+  final FileSystemService fileSystemService = FileSystemService();
+  final SettingsService settingsService = SettingsService();
   bool _obscureToken = true;
   bool _loading = true;
 
   @override
+  @override
   void initState() {
     super.initState();
-    _loadSettings();
+    _load();
   }
 
-  Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _load() async {
+    final settings = await settingsService.loadSettings();
 
     setState(() {
-      _botTokenController.text = prefs.getString('bot_token') ?? '';
-      _guildIdController.text = prefs.getString('guild_id') ?? '';
-      _categoryIdController.text = prefs.getString('category_id') ?? '';
+      token = settings['token'];
+      guildId = settings['guildId'];
+      categoryId = settings['categoryId'];
+      isDarkMode = settings['is_dark_mode'];
+      _botTokenController.text = token;
+      _guildIdController.text = guildId;
+      _categoryIdController.text = categoryId;
       _loading = false;
     });
   }
-
-  Future<void> _saveSettings() async {
-    final token = _botTokenController.text.trim();
-
-    final tokenChecker = TokenCheckerService();
-    await tokenChecker.init();
-
-    final isValid = await tokenChecker.checkAndSaveToken(token);
-
-    if (!isValid) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Bot token geçersiz!')),
-      );
-      return;
-    }
-
-    // Token geçerliyse, kaydetme işlemi zaten TokenCheckerService içinde yapılıyor
-    // Ek bilgi alanlarını ayrı kaydedebilirsin
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('guild_id', _guildIdController.text.trim());
-    await prefs.setString('category_id', _categoryIdController.text.trim());
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ Token geçerli. Ayarlar kaydedildi.')),
-    );
-  }
-
 
   @override
   void dispose() {
@@ -86,35 +63,15 @@ class _SettingsPageState extends State<SettingsPage> {
       final name = channel['name'] ?? 'unknown';
       final id = channel['id'] ?? '';
 
-      debugPrint('Kanal Adı: $name - ID: $id');
+      Logger.log('Kanal Adı: $name - ID: $id');
 
       fileSystemService.createFile([], name, id);
     }
     await fileSystemService.save();
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ Dosyalar Tarandı.')),
+      const SnackBar(content: Text('✅ Files Scanned.')),
     );
-
-    selectedIndex = 0;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => DiscordStorageLobi()),
-    );
-  }
-
-
-  void _selectIndex(int index) {
-    setState(() {
-      selectedIndex = index;
-    });
-
-    if (index == 0) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => DiscordStorageLobi()),
-      );
-    }
   }
 
   Widget _buildTextField({
@@ -143,7 +100,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ayarlar'),
+        title: const Text('Settings'),
         centerTitle: true,
       ),
       body: _loading
@@ -177,15 +134,22 @@ class _SettingsPageState extends State<SettingsPage> {
                     const SizedBox(height: 12),
                     _buildTextField(
                       controller: _categoryIdController,
-                      label: 'Kategori ID',
+                      label: 'Category ID',
                     ),
                     const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: _saveSettings,
+                        onPressed: () async {
+                          await settingsService.saveSettings(
+                            token: token,
+                            guildId: guildId,
+                            categoryId: categoryId,
+                            context: context,
+                          );
+                        },
                         icon: const Icon(Icons.save),
-                        label: const Text('Kaydet'),
+                        label: const Text('Save'),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -200,7 +164,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: OutlinedButton.icon(
                         onPressed: _scanPreviouslyUploadedFiles,
                         icon: Icon(Icons.search),
-                        label: Text('Discord\'a yüklenmiş dosyaları tara'),
+                        label: Text('Scan files uploaded to Discord'),
                         style: OutlinedButton.styleFrom(
                           padding: EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -213,21 +177,21 @@ class _SettingsPageState extends State<SettingsPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Debug Mod', style: TextStyle(fontSize: 16)),
+                        const Text('Thema', style: TextStyle(fontSize: 16)),
                         Switch(
-                          value: debugMode,
+                          value: isDarkMode,
                           onChanged: (val) {
                             setState(() {
-                              debugMode = val;
+                              isDarkMode = val;
+                              if (val) {
+                                ThemeModeBuilderConfig.setDark();
+                              } else {
+                                ThemeModeBuilderConfig.setLight();
+                              }
+                              settingsService.saveThemaMode(val);
                             });
                           },
                         ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Açıldığı zaman indirilenler kısmında gonderimlog dosyası oluşur, dosyayı birine atarsanız verilerinizin güvenliği tehlikeye girebilir.', style: TextStyle(fontSize: 16))
                       ],
                     ),
                   ],
@@ -237,24 +201,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         ),
       ),
-      bottomNavigationBar: SalomonBottomBar(
-        currentIndex: selectedIndex,
-        selectedItemColor: const Color(0xff6200ee),
-        unselectedItemColor: const Color(0xff757575),
-        onTap: _selectIndex,
-        items: [
-          SalomonBottomBarItem(
-            icon: Icon(Icons.home),
-            title: Text("Ana Sayfa"),
-            selectedColor: Colors.purple,
-          ),
-          SalomonBottomBarItem(
-            icon: Icon(Icons.settings),
-            title: Text("Ayarlar"),
-            selectedColor: Colors.purple,
-          ),
-        ],
-      ),
+      bottomNavigationBar: BottomNavBarWidget(),
     );
   }
 }
