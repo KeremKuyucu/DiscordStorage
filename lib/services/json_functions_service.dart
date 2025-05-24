@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:DiscordStorage/utilities.dart';
-import 'package:flutter/foundation.dart';
+import 'package:DiscordStorage/services/logger_service.dart';
 
-class JsonFunctions{
-  Map<String, String> idBul(String jsonStr) {
+class JsonFunctions {
+  Map<String, String> findIds(String jsonStr) {
+    String channelId = '';
+    String messageId = '';
+
     try {
+      Logger.log('Starting JSON parsing.');
       Map<String, dynamic> jsonResponse = jsonDecode(jsonStr);
 
       if (jsonResponse.containsKey('channel_id')) {
@@ -24,31 +27,38 @@ class JsonFunctions{
           }
         }
       }
+      Logger.log('JSON parsing completed. channelId: $channelId, messageId: $messageId');
     } catch (e) {
-      debugPrint('JSON parse error: $e');
+      Logger.error('JSON parse error: $e');
     }
 
     return {'channelId': channelId, 'messageId': messageId};
   }
 
-  String jsonWrite(int partNo, String channelId, String messageId) {
+  String writeJson(int partNo, String channelId, String messageId) {
     Map<String, dynamic> jsonObj = {
       'partNo': partNo,
       'channelId': channelId,
       'messageId': messageId
     };
 
-    return jsonEncode(jsonObj);
+    String jsonString = jsonEncode(jsonObj);
+    Logger.log('JSON written: $jsonString');
+    return jsonString;
   }
 
   String getSecondLine(String filePath) {
     try {
+      Logger.log('Reading second line from file: $filePath');
       List<String> lines = File(filePath).readAsLinesSync();
       if (lines.length >= 2) {
+        Logger.log('Second line found: ${lines[1]}');
         return lines[1];
+      } else {
+        Logger.log('Second line not found in the file.');
       }
     } catch (e) {
-      debugPrint('Error reading file: $e');
+      Logger.error('File read error: $e');
     }
     return '';
   }

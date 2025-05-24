@@ -1,20 +1,22 @@
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart';
+import 'package:DiscordStorage/services/logger_service.dart';
 
 class FileDownloader {
   Future<int> fileDownload(String url, String fileName) async {
+    Logger.log('Downloading file: $url');
     try {
       var response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
-        File(fileName).writeAsBytesSync(response.bodyBytes);
+        await File(fileName).writeAsBytes(response.bodyBytes);
+        Logger.log('File downloaded successfully: $fileName');
         return 0;
       } else {
-        debugPrint('Download failed with status code: ${response.statusCode}');
+        Logger.error('Download failed, status code: ${response.statusCode}');
         return 1;
       }
     } catch (e) {
-      debugPrint('Error downloading file: $e');
+      Logger.error('Error downloading file: $e');
       return 1;
     }
   }

@@ -6,6 +6,7 @@ import 'package:DiscordStorage/services/bottom_bar_service.dart';
 import 'package:DiscordStorage/services/discord_service.dart';
 import 'package:DiscordStorage/services/file_system_service.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
+import 'package:DiscordStorage/services/localization_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -63,14 +64,14 @@ class _SettingsPageState extends State<SettingsPage> {
       final name = channel['name'] ?? 'unknown';
       final id = channel['id'] ?? '';
 
-      Logger.log('Kanal Adı: $name - ID: $id');
+      Logger.log('Channel Name: $name - ID: $id');
 
       fileSystemService.createFile([], name, id);
     }
     await fileSystemService.save();
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ Files Scanned.')),
+      SnackBar(content: Text(Language.get('filesScanned'))),
     );
   }
 
@@ -100,7 +101,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const Text('Settings - DiscordStorage',style: TextStyle(color: Colors.purple)),
         centerTitle: true,
       ),
       body: _loading
@@ -118,7 +119,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: [
                     _buildTextField(
                       controller: _botTokenController,
-                      label: 'Bot Token',
+                      label: Language.get('botToken'),
                       obscure: _obscureToken,
                       toggleVisibility: () {
                         setState(() {
@@ -129,12 +130,12 @@ class _SettingsPageState extends State<SettingsPage> {
                     const SizedBox(height: 12),
                     _buildTextField(
                       controller: _guildIdController,
-                      label: 'Guild ID',
+                      label: Language.get('guildId'),
                     ),
                     const SizedBox(height: 12),
                     _buildTextField(
                       controller: _categoryIdController,
-                      label: 'Category ID',
+                      label: Language.get('categoryId'),
                     ),
                     const SizedBox(height: 20),
                     SizedBox(
@@ -149,7 +150,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           );
                         },
                         icon: const Icon(Icons.save),
-                        label: const Text('Save'),
+                        label: Text(Language.get('saveLabel')),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -164,7 +165,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: OutlinedButton.icon(
                         onPressed: _scanPreviouslyUploadedFiles,
                         icon: Icon(Icons.search),
-                        label: Text('Scan files uploaded to Discord'),
+                        label: Text(Language.get('scanFilesLabel')),
                         style: OutlinedButton.styleFrom(
                           padding: EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -177,7 +178,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Thema', style: TextStyle(fontSize: 16)),
+                        Text(Language.get('themeLabel'), style: TextStyle(fontSize: 16)),
                         Switch(
                           value: isDarkMode,
                           onChanged: (val) {
@@ -194,6 +195,38 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 20),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(Language.get('language'), style: TextStyle(fontSize: 16)),
+                            // Dropdown sağa yaslandı
+                            DropdownButton<String>(
+                              value: languageCode,
+                              items: languageCodes.map((code) {
+                                return DropdownMenuItem<String>(
+                                  value: code,
+                                  child: Text(Language.get(code)),
+                                );
+                              }).toList(),
+                              onChanged: (String? newCode) async {
+                                if (newCode == null) return;
+
+                                await Language.load(newCode);
+                                setState(() {
+                                  languageCode = newCode;
+                                });
+                                settingsService.saveLanguageCode(newCode);
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    )
                   ],
                 ),
               ),
@@ -201,7 +234,12 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavBarWidget(),
+      bottomNavigationBar: BottomNavBarWidget(
+        titles: [
+          Language.get('files'),
+          Language.get('settings'),
+        ],
+      ),
     );
   }
 }

@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'dart:convert';
-import 'package:path_provider/path_provider.dart';
 import 'package:DiscordStorage/services/download_service.dart';
 import 'package:DiscordStorage/services/file_hash_service.dart';
 import 'package:DiscordStorage/services/notification_service.dart';
 import 'package:DiscordStorage/services/discord_service.dart';
-import 'package:flutter/foundation.dart';
+import 'package:DiscordStorage/services/path_service.dart';
+import 'package:DiscordStorage/services/logger_service.dart';
+import 'package:DiscordStorage/services/localization_service.dart';
 
 class Link {
   final int partNumber;
@@ -21,73 +22,48 @@ class FileMerger {
   final FileDownloader fileDownloader = FileDownloader();
   final DiscordService discordService = DiscordService();
   final FileHash fileHash = FileHash();
+  final PathHelper pathHelper = PathHelper();
+
   FileMerger();
 
+  Future<void> mergeFiles(String filePath) async {
+    Logger.log('splitFileAndUpload started');
 
-  Future<String?> getDownloadsPath() async {
-    final userProfile = Platform.environment['USERPROFILE'];
-    if (userProfile != null) {
-      return '$userProfile\\Downloads';
-    }
-    return null;
-  }
-  Future<String> getDownloadsDirectoryPath() async {
-    if (kIsWeb) {
-      throw UnsupportedError("Web platformu desteklenmiyor.");
-    }
+    // Read file content
+    final file = File(filePath);
 
-    if (Platform.isWindows) {
-      final downloadsPath = await getDownloadsPath();
-      if (downloadsPath != null) {
-        return downloadsPath;
-      } else {
-        // fallback: kullanıcı dizini
-        return Platform.environment['USERPROFILE']! + '\\Downloads';
-      }
-    } else if (Platform.isAndroid) {
-      // Android'de dış depolama indirilenler dizini
-      final directory = await getExternalStorageDirectory();
-      if (directory != null) {
-        // Genellikle "/storage/emulated/0/Android/data/<package>/files"
-        // Android'de doğrudan "Downloads" klasörüne yazmak için farklı izinler gerekebilir
-        // Bu yüzden dış depolamadaki 'Download' klasörünü elle oluşturabiliriz
-        final downloadDir = Directory('/storage/emulated/0/Download');
-        if (!await downloadDir.exists()) {
-          await downloadDir.create(recursive: true);
-        }
-        return downloadDir.path;
-      } else {
-        throw Exception("Dış depolama dizini bulunamadı.");
-      }
-    } else {
-      throw UnsupportedError("Platform desteklenmiyor.");
-    }
-  }
-
-  Future<void> mergeFiles(String linksFileName) async {
-    final linksFile = File(linksFileName);
-    if (!await linksFile.exists()) {
-      debugPrint('Error: Could not open links file: $linksFileName');
+    if (!await file.exists()) {
+      Logger.error('File not found: $filePath');
       return;
     }
 
-    final lines = await linksFile.readAsLines();
+    final content = await file.readAsString();
+
+    final lines = LineSplitter.split(content).toList();
+    Logger.log('Total number of lines: ${lines.length}');
+
     if (lines.isEmpty) {
-      debugPrint('Error: Links file is empty!');
+      Logger.error('Links file is empty!');
       return;
     }
 
     final totalParts = int.tryParse(lines[0]) ?? 0;
+    Logger.log('Total parts count: $totalParts');
+
     if (totalParts <= 0 || lines.length < 4) {
-      debugPrint('Error: Invalid links file format!');
+      Logger.error('Invalid links file format!');
       return;
     }
 
-    final downloadsDir = await getDownloadsDirectoryPath();
+    final downloadsDir = await pathHelper.getDownloadsDirectoryPath();
     final targetFileName = lines[1];
     final targetFilePath = '$downloadsDir${Platform.pathSeparator}$targetFileName';
     final hash = lines[2];
     final webhook = lines[3];
+    Logger.log('Target file name: $targetFileName');
+    Logger.log('Target file path: $targetFilePath');
+    Logger.log('Expected file hash: $hash');
+    Logger.log('Webhook URL: $webhook');
 
     final List<Link> links = [];
 
@@ -98,18 +74,20 @@ class FileMerger {
         final channelId = jsonObj['channelId'];
         final messageId = jsonObj['messageId'];
         links.add(Link(partNumber, channelId, messageId));
+        Logger.log('Link added: partNo=$partNumber, channelId=$channelId, messageId=$messageId');
       } catch (e) {
-        debugPrint('Error parsing link: ${lines[i]}');
+        Logger.error('Link parsing error: ${lines[i]}');
         continue;
       }
     }
 
     if (links.length != totalParts) {
-      debugPrint('Error: Number of links does not match total parts!');
+      Logger.error('Number of links does not match total parts! (${links.length} != $totalParts)');
       return;
     }
 
     links.sort((a, b) => a.partNumber.compareTo(b.partNumber));
+    Logger.log('Links sorted.');
 
     final targetFile = File(targetFilePath);
     final sink = targetFile.openWrite();
@@ -119,36 +97,66 @@ class FileMerger {
 
     for (final link in links) {
       final newFileName = 'part${link.partNumber}.txt';
-      partFiles.add(newFileName);
+      final newFilePath = '$downloadsDir${Platform.pathSeparator}$newFileName';
+      partFiles.add(newFilePath);
+      Logger.log('Starting file download: $newFilePath');
+
       final url = await discordService.getFileUrl(link.channelId, link.messageId);
-      int result = await fileDownloader.fileDownload(url, newFileName);
+      Logger.log('File URL retrieved: $url');
+
+      int result = await fileDownloader.fileDownload(url, newFilePath);
       if (result != 0) {
-        debugPrint('Dosya indirilemedi: $newFileName');
+        Logger.error('File could not be downloaded -> $newFilePath');
         return;
       }
+
       downloadedParts++;
+      Logger.log('Downloaded parts count: $downloadedParts/$totalParts');
       await notificationService.showProgressNotification(downloadedParts, totalParts);
     }
 
     int mergedParts = 0;
     for (final partFileName in partFiles) {
       final partFile = File(partFileName);
+      Logger.log('Merging part: $partFileName');
+
       if (await partFile.exists()) {
         final bytes = await partFile.readAsBytes();
         sink.add(bytes);
         mergedParts++;
+        Logger.log('Merged parts count: $mergedParts/$totalParts');
         await notificationService.showProgressNotification(mergedParts, totalParts);
         await partFile.delete();
+        Logger.log('Part file deleted: $partFileName');
       } else {
-        debugPrint('Error: Could not open part file: $partFileName');
+        Logger.error('Part file not found -> $partFileName');
       }
     }
 
     await sink.close();
+    Logger.log('Write operation completed: $targetFilePath');
 
-    if (await fileHash.getFileHash(targetFileName) != hash) {
-      debugPrint('Error: File hash mismatch! The downloaded file may be corrupted.');
+    final calculatedHash = await fileHash.getFileHash(targetFilePath);
+    Logger.log('Calculated hash: $calculatedHash');
+
+    if (calculatedHash != hash) {
+      Logger.error('File hash mismatch! The file may be corrupted.');
+      await notificationService.showNotification(
+        Language.get('hashMismatchTitle'),
+        Language.get('hashMismatchBody'),
+        id: 1,
+        playSound: true,
+      );
+    } else {
+      Logger.log('Successful File verified.');
+      await notificationService.showNotification(
+        Language.get('verifySuccessTitle'),
+        Language.get('verifySuccessBody'),
+        id: 2,
+        playSound: true,
+      );
     }
-  }
 
+    Logger.log('mergeFiles operation completed.');
+  }
 }

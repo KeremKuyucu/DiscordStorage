@@ -1,66 +1,27 @@
-import 'package:theme_mode_builder/theme_mode_builder.dart';
 import 'package:flutter/material.dart';
+import 'package:theme_mode_builder/theme_mode_builder.dart';
+
 import 'package:DiscordStorage/screens/main/screen.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'dart:io';
+import 'package:DiscordStorage/services/logger_service.dart';
+import 'package:DiscordStorage/services/update_checker_service.dart';
+import 'package:DiscordStorage/services/notification_service.dart';
+import 'package:DiscordStorage/services/permission_service.dart';
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-FlutterLocalNotificationsPlugin();
-
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  Logger.log('Application is starting...');
 
-  await initializeNotifications();
-  await requestPermissions();
+  // Initialize notifications
+  NotificationService.init();
+  Logger.log('Notifications initialized.');
+
+  // Check permissions
+  PermissionService.init();
+  Logger.log('Permissions checked.');
 
   runApp(DiscordStorage());
+  Logger.log('runApp called, application started.');
 }
-Future<void> initializeNotifications() async {
-  const AndroidInitializationSettings androidSettings =
-  AndroidInitializationSettings('@mipmap/ic_launcher');
-
-  final WindowsInitializationSettings windowsSettings = WindowsInitializationSettings(
-    appName: 'DiscordStorage',
-    appUserModelId: 'com.kerem.discordstorage',
-    guid: '9c9737b1-1f94-4eaa-8a6b-123456789abc',
-  );
-
-  final InitializationSettings initializationSettings = InitializationSettings(
-    android: androidSettings,
-    windows: windowsSettings,
-  );
-
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-}
-Future<void> requestPermissions() async {
-  if (Platform.isAndroid) {
-    var storageStatus = await Permission.storage.status;
-    if (!storageStatus.isGranted) {
-      storageStatus = await Permission.storage.request();
-      if (!storageStatus.isGranted) {
-        debugPrint('Storage izni reddedildi!');
-      }
-    }
-
-    var notificationStatus = await Permission.notification.status;
-    if (!notificationStatus.isGranted) {
-      notificationStatus = await Permission.notification.request();
-      if (!notificationStatus.isGranted) {
-        debugPrint('Bildirim izni reddedildi!');
-      }
-    }
-  } else if (Platform.isIOS) {
-    var notificationStatus = await Permission.notification.status;
-    if (!notificationStatus.isGranted) {
-      notificationStatus = await Permission.notification.request();
-      if (!notificationStatus.isGranted) {
-        debugPrint('Bildirim izni reddedildi!');
-      }
-    }
-  }
-}
-
 
 class DiscordStorage extends StatefulWidget {
   @override
@@ -69,6 +30,22 @@ class DiscordStorage extends StatefulWidget {
 
 class DiscordStorageState extends State<DiscordStorage> {
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateCheck(context);
+    });
+  }
+
+  void _updateCheck(BuildContext context) {
+    UpdateChecker(
+      context: context,
+      repoOwner: 'KeremKuyucu',
+      repoName: 'DiscordStorage',
+    ).checkForUpdate();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ThemeModeBuilder(
       builder: (BuildContext context, ThemeMode themeMode) {
@@ -76,6 +53,12 @@ class DiscordStorageState extends State<DiscordStorage> {
           debugShowCheckedModeBanner: false,
           title: "DiscordStorage",
           themeMode: themeMode,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              brightness: Brightness.light,
+              seedColor: Colors.deepPurple,
+            ),
+          ),
           darkTheme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
               brightness: Brightness.dark,
@@ -89,21 +72,11 @@ class DiscordStorageState extends State<DiscordStorage> {
   }
 }
 
-
 /*
 flutter pub run flutter_launcher_icons:main
-
 
 adb install build\app\outputs\flutter-apk\app-release.apk
 
 flutter build apk --release
-xcopy /Y /I "build\app\outputs\flutter-apk\app-release.apk" "C:\Users\KeremK\Desktop\DiscordStorage-Mobile.apk"
 flutter build windows
-xcopy /E /I "build\windows\x64\runner\Release" "C:\Users\KeremK\Desktop\DiscordStorage"
-
-
-flutter build apk --release
-flutter build windows
-
-
- */
+*/

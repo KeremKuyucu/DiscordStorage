@@ -1,6 +1,6 @@
 [Setup]
 AppName=DiscordStorage
-AppVersion=v0.1.1-alpha
+AppVersion=v0.1.3-alpha
 DefaultDirName={userappdata}\DiscordStorage
 DefaultGroupName=DiscordStorage
 OutputDir=C:\Users\Kerem\Projects

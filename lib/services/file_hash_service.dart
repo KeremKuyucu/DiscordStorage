@@ -1,13 +1,25 @@
 import 'package:crypto/crypto.dart';
 import 'dart:io';
+import 'package:DiscordStorage/services/logger_service.dart';
 
-class FileHash{
+class FileHash {
   Future<String> getFileHash(String filePath) async {
-    final file = File(filePath);
-    if (!await file.exists()) return '';
+    try {
+      Logger.log('Starting hash calculation: $filePath');
+      final file = File(filePath);
 
-    final bytes = await file.readAsBytes();
-    final digest = sha256.convert(bytes);
-    return digest.toString();
+      if (!await file.exists()) {
+        Logger.error('File not found: $filePath');
+        return '';
+      }
+
+      final bytes = await file.readAsBytes();
+      final digest = sha256.convert(bytes);
+      Logger.log('Hash calculated successfully: $digest');
+      return digest.toString();
+    } catch (e) {
+      Logger.error('Hash calculation error: $e');
+      return '';
+    }
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter/foundation.dart';
+import 'package:DiscordStorage/services/logger_service.dart';
+import 'package:DiscordStorage/services/localization_service.dart';
 
 class NotificationService {
   static final NotificationService instance = NotificationService._privateConstructor();
@@ -8,31 +9,40 @@ class NotificationService {
 
   NotificationService._privateConstructor();
 
-  Future<void> initialize() async {
-    const androidInitialization = AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    final initializationSettings = InitializationSettings(
-      android: androidInitialization,
-      // iOS eklemek istersen buraya ekleyebilirsin
-    );
-
-    await flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (details) async {
-        debugPrint('Bildirime tıklandı: ${details.payload}');
-      },
-    );
+  static Future<void> init() async {
+    await instance.initializeNotifications();
   }
 
-  Future<void> showNotification(String title, String body, {int id = 0}) async {
-    const notificationDetails = NotificationDetails(
+  Future<void> initializeNotifications() async {
+    Logger.log('Initializing notifications...');
+
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    final windowsSettings = WindowsInitializationSettings(
+      appName: 'DiscordStorage',
+      appUserModelId: 'com.kerem.discordstorage',
+      guid: '9c9737b1-1f94-4eaa-8a6b-123456789abc',
+    );
+
+    final initializationSettings = InitializationSettings(
+      android: androidSettings,
+      windows: windowsSettings,
+    );
+
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    Logger.log('Notifications initialized successfully.');
+  }
+
+  Future<void> showNotification(String title, String body, {int id = 0, bool playSound = false}) async {
+    Logger.log('Showing notification: $title - $body');
+    final notificationDetails = NotificationDetails(
       android: AndroidNotificationDetails(
-        'discordstorage_file', // kanal ID
-        'File Process',         // kanal adı
-        channelDescription: 'DiscordStorage',
+        'discordstorage_file',
+        'File Operations',
+        channelDescription: 'DiscordStorage notification channel',
         importance: Importance.high,
         priority: Priority.high,
-        playSound: false,
+        playSound: playSound,
       ),
     );
 
@@ -42,9 +52,11 @@ class NotificationService {
       body,
       notificationDetails,
     );
+    Logger.log('Notification shown (ID: $id)');
   }
 
   Future<void> showProgressNotification(int current, int total, {int id = 100, int barWidth = 20}) async {
+    Logger.log('Updating progress notification: $current / $total');
     double progress = current / total;
     int pos = (barWidth * progress).toInt();
 
@@ -60,18 +72,17 @@ class NotificationService {
     }
 
     final progressPercent = (progress * 100).toInt();
-    final title = 'İşlem devam ediyor';
+    final title = Language.get('operationInProgress');
     final body = '[$bar] %$progressPercent ($current/$total)';
 
     final androidDetails = AndroidNotificationDetails(
       'discordstorage_file',
-      'File Process',
-      channelDescription: 'DiscordStorage',
+      'File Operations',
+      channelDescription: 'DiscordStorage notification channel',
       importance: Importance.high,
       priority: Priority.high,
       playSound: false,
-      onlyAlertOnce: true, // Bildirim sadece ilk seferde ses çıkarır
-      // progress bar desteği için
+      onlyAlertOnce: true,
       maxProgress: total,
       progress: current,
       showProgress: true,
@@ -86,9 +97,12 @@ class NotificationService {
       notificationDetails,
     );
 
-    if (current == total) {
-      await flutterLocalNotificationsPlugin.cancel(id); // İşlem bittiğinde bildirimi kaldır
-      await showNotification('İşlem tamamlandı', 'Dosya işlemi tamamlandı.', id: id);
+    Logger.log('Progress notification shown (ID: $id)');
+
+    if (current >= total) {
+      Logger.log('Operation completed, removing progress notification.');
+      await flutterLocalNotificationsPlugin.cancel(id);
+      await showNotification(Language.get('operationCompletedTitle'), Language.get('operationCompletedBody'), id: id, playSound: true);
     }
   }
 }
