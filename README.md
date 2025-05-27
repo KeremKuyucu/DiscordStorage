@@ -1,146 +1,142 @@
-Aşağıda, verdiğin `README.md` dosyasını daha okunabilir, profesyonel ve açık hale getirdim. Dil bilgisi ve yapı açısından bazı düzenlemeler yaptım, ayrıca başlıkları daha akıcı hale getirerek bazı yerleri sadeleştirdim:
-
----
-
 # DiscordStorage
 
 <div align="center">
   <img src="assets/logo.png" alt="DiscordStorage Logo" width="200">
-  <p>📦 Discord üzerinden dosya depolama ve paylaşım uygulaması</p>
+  <p>📦 A file storage and sharing application via Discord</p>
 </div>
 
-## 📑 İçindekiler
+## 📁 Table of Contents
 
-* [Proje Hakkında](#-proje-hakkında)
-* [Özellikler](#-özellikler)
-* [Kurulum](#-kurulum)
-* [Kullanım](#-kullanım)
-* [Teknik Detaylar](#-teknik-detaylar)
-* [Uyarılar](#-uyarılar)
-* [Sürüm Geçmişi](#-sürüm-geçmişi)
-* [Katkıda Bulunma](#-katkıda-bulunma)
-* [Lisans](#-lisans)
-
----
-
-## 🔍 Proje Hakkında
-
-**DiscordStorage**, dosyalarınızı Discord sunucuları aracılığıyla güvenli ve pratik bir şekilde saklamanızı sağlayan çapraz platform bir uygulamadır. **Flutter** ile geliştirilmiştir ve **Android** ile **Windows** platformlarını destekler.
-
-Bu proje, daha önce C++ ile geliştirilen [DiscordStorageCpp](https://github.com/keremkuyucu/discordstorageCpp) projesinin geliştirilmiş ve modernleştirilmiş Flutter sürümüdür.
+* [About the Project](#-about-the-project)
+* [Features](#-features)
+* [Installation](#-installation)
+* [Usage](#-usage)
+* [Technical Details](#-technical-details)
+* [Warnings](#-warnings)
+* [Changelog](#-changelog)
+* [Contributing](#-contributing)
+* [License](#-license)
 
 ---
 
-## 🚀 Özellikler
+## 🔍 About the Project
 
-* 📁 Discord sunucularında dosya saklama ve yönetme
-* 🔐 Bot token’ı yalnızca yerel cihazda saklanır
-* 📤 Büyük dosyaları otomatik olarak 8MB’lık parçalara ayırarak yükleme
-* 📥 Parçaları otomatik olarak birleştirerek indirme
-* 🧪 Gelişmiş hata takibi için `debugLog` desteği
-* 🧾 SHA-256 hash algoritması ile dosya bütünlüğü kontrolü
-* 🖥️ Mobil ve masaüstü uyumlu sade ve modern kullanıcı arayüzü
-* 🔄 Otomatik güncelleme kontrol sistemi
+**DiscordStorage** is a cross-platform application that allows you to store your files securely and conveniently using Discord servers. It is developed with **Flutter** and supports both **Android** and **Windows** platforms.
+
+This project is a modernized and improved Flutter version of the [DiscordStorageCpp](https://github.com/keremkuyucu/discordstorageCpp) project previously developed in C++.
 
 ---
 
-## 💻 Kurulum
+## 🚀 Features
+
+* 📁 Store and manage files on Discord servers
+* 🔐 Bot token is stored only on the local device
+* 📄 Automatically splits large files into 8MB parts and uploads them
+* 📅 Automatically merges parts and downloads them
+* 🧪 `debugLog` support for advanced error tracking
+* 🯞 SHA-256 hashing for file integrity verification
+* 🖥️ Clean and modern UI compatible with mobile and desktop
+* 🔄 Automatic update check system
+
+---
+
+## 💻 Installation
 
 ### Windows
 
-1. [Releases](https://github.com/KeremKuyucu/DiscordStorage/releases) sayfasından en son sürümü indir.
-2. Kurulum dosyasını çalıştır ve yönergeleri takip et.
-3. Kurulum tamamlandığında uygulamayı başlat.
+1. Download the latest version from the [Releases](https://github.com/KeremKuyucu/DiscordStorage/releases) page.
+2. Run the installer and follow the instructions.
+3. Once the installation is complete, launch the application.
 
 ### Android
 
-1. [Releases](https://github.com/KeremKuyucu/DiscordStorage/releases) sayfasından en son `.apk` dosyasını indir.
-2. APK dosyasını cihaza yükle ve gerekli izinleri ver.
-3. Uygulamayı başlat.
+1. Download the latest `.apk` file from the [Releases](https://github.com/KeremKuyucu/DiscordStorage/releases) page.
+2. Install the APK on your device and grant the necessary permissions.
+3. Launch the app.
 
-### Geliştiriciler için
+### For Developers
 
 ```bash
-# Depoyu klonla
+# Clone the repository
 git clone https://github.com/KeremKuyucu/DiscordStorageNew.git
 
-# Bağımlılıkları yükle
+# Install dependencies
 flutter pub get
 
-# Uygulamayı başlat
+# Run the application
 flutter run
 ```
 
 ---
 
-## 📱 Kullanım
+## 📱 Usage
 
-### Başlangıç Ayarları
+### Initial Setup
 
-1. [Discord Developer Portal](https://discord.com/developers/applications)'dan bir bot oluştur ve token’ı al.
-2. Uygulamada **Ayarlar** sekmesine gir.
-3. Bot token’ını gir ve "Token Kontrol Et" butonuna tıkla.
-4. Sunucu ID ve Kategori ID bilgilerini gir.
-5. "Kaydet" butonuna tıklayarak ayarları tamamla.
+1. Create a bot and get the token from the [Discord Developer Portal](https://discord.com/developers/applications).
+2. Go to the **Settings** tab in the app.
+3. Enter the bot token and click "Check Token".
+4. Enter the Server ID and Category ID.
+5. Click "Save" to complete the setup.
 
-### Dosya Yükleme
+### Uploading Files
 
-1. Ana ekranda **"Dosya Yükle"** butonuna tıkla.
-2. Yüklemek istediğin dosyayı seç.
-3. Yükleme işlemi otomatik olarak başlar ve tamamlandığında ana ekranda listelenir.
+1. On the main screen, click **"Upload File"**.
+2. Select the file you want to upload.
+3. The upload will start automatically and the file will appear on the main screen when completed.
 
-### Dosya İndirme
+### Downloading Files
 
-1. Ana ekranda indirmek istediğin dosyayı seç.
-2. **"İndir"** butonuna tıkla.
-3. Dosya otomatik olarak indirilir ve cihazının **İndirilenler** klasörüne kaydedilir.
-
----
-
-## 🔧 Teknik Detaylar
-
-### Parçalama ve Birleştirme
-
-* Discord’un 8MB yükleme limiti nedeniyle, dosyalar bu boyuta göre parçalara ayrılır.
-* Her parça için bir JSON kaydı tutulur.
-* İndirme sırasında tüm parçalar sırayla birleştirilir.
-
-### Dosya Bütünlüğü
-
-* Yükleme ve indirme işlemlerinde **SHA-256** hash algoritması ile bütünlük doğrulaması yapılır.
-
-
-## ⚠️ Uyarılar
-
-* Bir dosya yüklendikten sonra **ilgili Discord kanalına manuel mesaj göndermeyin**. Aksi halde sistem bozulabilir.
-* Botun yetkilerinin eksiksiz olduğundan emin olun.
-* İsterseniz botun özel kategorisinde tam yetki verip sunucuda yetkisiz bırakabilirsiniz.
-* Büyük dosyalar için cihazınızda yeterli boş alan bulunduğundan emin olun.
+1. Select the file you want to download on the main screen.
+2. Click the **"Download"** button.
+3. The file will be automatically downloaded and saved to your device’s **Downloads** folder.
 
 ---
 
-## 🤝 Katkıda Bulunma
+## 🔧 Technical Details
 
-Katkı sağlamak için:
+### Splitting and Merging
 
-1. Depoyu forklayın
-2. Yeni bir dal oluşturun: `git checkout -b yeni-ozellik`
-3. Değişiklikleri commit edin: `git commit -m "Yeni özellik eklendi"`
-4. Dalı pushlayın: `git push origin yeni-ozellik`
-5. Bir Pull Request gönderin
+* Due to Discord’s 8MB upload limit, files are split into parts accordingly.
+* A JSON record is kept for each part.
+* During download, all parts are merged in order.
+
+### File Integrity
+
+* File integrity is verified during upload and download using the **SHA-256** hash algorithm.
 
 ---
 
-## 📄 Lisans
+## ⚠️ Warnings
 
-Bu proje [LICENSE](LICENSE) dosyasında belirtilen açık kaynak lisansı kapsamında dağıtılmaktadır.
+* **Do not manually send messages to the relevant Discord channel** after a file is uploaded. This may break the system.
+* Make sure the bot has all necessary permissions.
+* Optionally, you can give full permissions in a private category and restrict the bot in the rest of the server.
+* Ensure there is enough free space on your device for large files.
+
+---
+
+## 🤝 Contributing
+
+To contribute:
+
+1. Fork the repository
+2. Create a new branch: `git checkout -b new-feature`
+3. Commit your changes: `git commit -m "Add new feature"`
+4. Push to the branch: `git push origin new-feature`
+5. Submit a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the open-source license specified in the [LICENSE](LICENSE) file.
 
 ---
 
 <div align="center">
-  <p>Geliştirici: <strong>Kerem Kuyucu</strong></p>
+  <p>Developer: <strong>Kerem Kuyucu</strong></p>
   <p>© 2023-2024 DiscordStorage</p>
 </div>
 
 ---
-
