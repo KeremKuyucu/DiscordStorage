@@ -9,6 +9,7 @@ import 'package:DiscordStorage/services/permission_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Logger.init();
   Logger.log('Application is starting...');
 
   // Initialize notifications
@@ -79,4 +80,5 @@ adb install build\app\outputs\flutter-apk\app-release.apk
 
 flutter build apk --release
 flutter build windows
+
 */

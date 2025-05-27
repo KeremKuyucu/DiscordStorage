@@ -173,7 +173,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
   Future<void> _deleteItem(String name, {required String channelId, bool deleteFromDiscord = false}) async {
     fileSystemService.deleteItem(currentPath, name);
     if (deleteFromDiscord) {
-      await discordService.deleteDiscordChannel(channelId: channelId);
+      await discordService.deleteDiscordChannel(channelId);
     }
     fileSystemService.save();
     setState(() {});

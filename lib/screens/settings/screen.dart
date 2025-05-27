@@ -1,3 +1,4 @@
+import 'package:DiscordStorage/screens/logs/screen.dart';
 import 'package:flutter/material.dart';
 import 'package:theme_mode_builder/theme_mode_builder.dart';
 import 'package:DiscordStorage/services/utilities.dart';
@@ -143,9 +144,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: ElevatedButton.icon(
                         onPressed: () async {
                           await settingsService.saveSettings(
-                            token: token,
-                            guildId: guildId,
-                            categoryId: categoryId,
+                            token2: _botTokenController.text,
+                            guildId2: _guildIdController.text,
+                            categoryId2: _categoryIdController.text,
                             context: context,
                           );
                         },
@@ -226,7 +227,26 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         const SizedBox(height: 10),
                       ],
-                    )
+                    ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const LogsPage()),
+                          );
+                        },
+                        icon: const Icon(Icons.list),
+                        label: Text(Language.get('viewLogs')),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

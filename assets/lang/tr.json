@@ -32,6 +32,8 @@
   "folderNameHint": "Klasör adı",
   "createNewFolder": "Yeni klasör oluştur",
 
+  "tokenInvalid": "❌ Token geçersiz!",
+  "tokenValid": "✅ Token geçerli.",
   "filesScanned": "✅ Dosyalar tarandı.",
   "botToken": "Bot Token",
   "guildId": "Sunucu ID",
@@ -47,5 +49,14 @@
   "hashMismatchBody": "Dosya hash değeri eşleşmiyor, dosya bozulmuş olabilir.",
 
   "files": "Dosyalar",
-  "settings": "Ayarlar"
+  "settings": "Ayarlar",
+
+  "logs": "Günlükler",
+  "noLogs": "Mevcut günlük yok",
+  "clearLogs": "Günlükleri Temizle",
+  "confirmClearLogs": "Tüm günlükleri temizlemek istediğinizden emin misiniz?",
+  "iptal": "İptal",
+  "confirm": "Onayla",
+  "logsCleared": "Günlükler başarıyla temizlendi",
+  "viewLogs": "Logları Görüntüle"
 }

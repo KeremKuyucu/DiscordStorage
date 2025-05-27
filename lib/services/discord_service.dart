@@ -84,7 +84,7 @@ class DiscordService {
     }
   }
 
-  Future<bool> deleteDiscordChannel({required String channelId}) async {
+  Future<bool> deleteDiscordChannel(String channelId) async {
     final url = Uri.parse('https://discord.com/api/v10/channels/$channelId');
 
     try {

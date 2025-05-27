@@ -30,6 +30,8 @@
   "folderNameHint": "Folder name",
   "createNewFolder": "Create new folder",
 
+  "tokenInvalid": "❌ Token invalid!",
+  "tokenValid": "✅ Token valid.",
   "filesScanned": "✅ Files Scanned.",
   "botToken": "Bot Token",
   "guildId": "Guild ID",
@@ -45,5 +47,14 @@
   "hashMismatchBody": "File hash does not match, the file may be corrupted.",
 
   "files": "Files",
-  "settings": "Settings"
+  "settings": "Settings",
+
+  "logs": "Logs",
+  "noLogs": "No logs available",
+  "clearLogs": "Clear Logs",
+  "confirmClearLogs": "Are you sure you want to clear all logs?",
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  "logsCleared": "Logs cleared successfully",
+  "viewLogs": "View Logs"
 }

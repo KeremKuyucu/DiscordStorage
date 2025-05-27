@@ -1,24 +1,81 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 
 bool debugMode = false;
-class Logger {
-  static void log(String message) {
-    final callerInfo = _getCallerInfo();
-    final timestamp = DateTime.now().toIso8601String();
-    final logMessage = '[$timestamp] $message (Caller: $callerInfo)';
 
-    if(debugMode) {
-      debugPrint(logMessage);
-    }
+class Logger {
+  static late final File file;
+
+  static final List<String> _writeQueue = [];
+
+  static bool _isWriting = false;
+
+  static Future<void> init() async {
+    file = await _getLogFile();
+  }
+
+  static void log(String message) {
+    _enqueueLog(message, isError: false);
   }
 
   static void error(String message) {
+    _enqueueLog(message, isError: true);
+  }
+
+  static void _enqueueLog(String message, {required bool isError}) {
     final callerInfo = _getCallerInfo();
     final timestamp = DateTime.now().toIso8601String();
-    final logMessage = '[ERROR - $timestamp] $message (Caller: $callerInfo)';
+    final logMessage = isError
+        ? '[ERROR - $timestamp] $message (Caller: $callerInfo)'
+        : '[$timestamp] $message (Caller: $callerInfo)';
 
-    debugPrint(logMessage);
+    if (debugMode) debugPrint(logMessage);
+
+    _writeQueue.add(logMessage);
+    if (!_isWriting) {
+      _processQueue();
+    }
+  }
+
+  static void _processQueue() async {
+    _isWriting = true;
+    while (_writeQueue.isNotEmpty) {
+      final msg = _writeQueue.removeAt(0);
+      try {
+        await file.writeAsString('$msg\n', mode: FileMode.append);
+      } catch (e) {
+        debugPrint('Log yazma hatası: $e');
+      }
+    }
+    _isWriting = false;
+  }
+
+  static Future<void> clearLogs() async {
+    if (await file.exists()) {
+      await file.writeAsString('');
+    }
+  }
+
+  static Future<List<String>> readLogs() async {
+    if (!await file.exists()) return [];
+
+    final content = await file.readAsString();
+    final lines = content.split('\n').where((line) => line.isNotEmpty).toList();
+
+    /*
+    // Debug için tüm satırları yazdır
+    for (var i = 0; i < lines.length; i++) {
+      debugPrint('Satır $i: ${lines[i]}');
+    }
+     */
+
+    return lines;
+  }
+
+  static Future<File> _getLogFile() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File('${dir.path}/app_logs.txt');
   }
 
   static String _getCallerInfo() {
@@ -29,7 +86,6 @@ class Logger {
         final callerLine = lines[2].trim();
         final regExp = RegExp(r'\((.*?):(\d+):(\d+)\)');
         final match = regExp.firstMatch(callerLine);
-
         if (match != null) {
           final filePath = match.group(1);
           final line = match.group(2);
