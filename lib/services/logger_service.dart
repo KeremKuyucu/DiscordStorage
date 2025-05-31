@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:device_info_plus/device_info_plus.dart';
 
 bool debugMode = true;
 
@@ -49,14 +48,11 @@ class Logger {
   }
 
   static void _sendSingleLogToDiscord(String message) async {
-    final deviceId = await getDeviceId();
-
     try {
       final url = Uri.parse("https://keremkk.glitch.me/discordstorage/dslog");
       final body = jsonEncode({
         "message": jsonEncode({
           "log": message,
-          "device": deviceId
         })
       });
 
@@ -138,22 +134,5 @@ class Logger {
     }
   }
 
-  static Future<Object> getDeviceId() async {
-    final deviceInfo = DeviceInfoPlugin();
-
-    try {
-      if (Platform.isAndroid) {
-        final androidInfo = await deviceInfo.androidInfo;
-        return androidInfo ;
-      } else if (Platform.isWindows) {
-        final windowsInfo = await deviceInfo.windowsInfo;
-        return windowsInfo.computerName;
-      }
-    } catch (e) {
-      return 'error_getting_device_id';
-    }
-
-    return 'unknown';
-  }
 
 }
