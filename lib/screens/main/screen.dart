@@ -557,7 +557,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
                   _shareFile(name, channelId);
                   break;
                 case 'rename':
-                  _showRenameDialog(name, isFolder, channelId); // <-- EKLENDİ
+                  _showRenameDialog(name, isFolder, channelId);
                   break;
                 case 'delete':
                   _showDeleteConfirmationDialog(name, isFolder, channelId);

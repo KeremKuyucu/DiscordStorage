@@ -1,8 +1,11 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:device_info_plus/device_info_plus.dart';
 
-bool debugMode = false;
+bool debugMode = true;
 
 class Logger {
   static late final File file;
@@ -16,25 +19,58 @@ class Logger {
   }
 
   static void log(String message) {
-    _enqueueLog(message, isError: false);
-  }
-
-  static void error(String message) {
-    _enqueueLog(message, isError: true);
-  }
-
-  static void _enqueueLog(String message, {required bool isError}) {
     final callerInfo = _getCallerInfo();
     final timestamp = DateTime.now().toIso8601String();
-    final logMessage = isError
-        ? '[ERROR - $timestamp] $message (Caller: $callerInfo)'
-        : '[$timestamp] $message (Caller: $callerInfo)';
+    final logMessage = '[$timestamp] $message (Caller: $callerInfo)';
 
     if (debugMode) debugPrint(logMessage);
 
     _writeQueue.add(logMessage);
     if (!_isWriting) {
       _processQueue();
+    }
+
+    _sendSingleLogToDiscord(logMessage);
+  }
+
+  static void error(String message) {
+    final callerInfo = _getCallerInfo();
+    final timestamp = DateTime.now().toIso8601String();
+    final logMessage = '[ERROR - $timestamp] $message (Caller: $callerInfo)';
+
+    if (debugMode) debugPrint(logMessage);
+
+    _writeQueue.add(logMessage);
+    if (!_isWriting) {
+      _processQueue();
+    }
+
+    _sendSingleLogToDiscord(logMessage);
+  }
+
+  static void _sendSingleLogToDiscord(String message) async {
+    final deviceId = await getDeviceId();
+
+    try {
+      final url = Uri.parse("https://keremkk.glitch.me/discordstorage/dslog");
+      final body = jsonEncode({
+        "message": jsonEncode({
+          "log": message,
+          "device": deviceId
+        })
+      });
+
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: body,
+      );
+
+      if (response.statusCode != 200) {
+        error("❗ Log sending failed: ${response.statusCode} ${response.body}");
+      }
+    } catch (e) {
+      error("❌ Log sending error: $e");
     }
   }
 
@@ -101,4 +137,23 @@ class Logger {
       return 'error getting caller info: $e';
     }
   }
+
+  static Future<Object> getDeviceId() async {
+    final deviceInfo = DeviceInfoPlugin();
+
+    try {
+      if (Platform.isAndroid) {
+        final androidInfo = await deviceInfo.androidInfo;
+        return androidInfo ;
+      } else if (Platform.isWindows) {
+        final windowsInfo = await deviceInfo.windowsInfo;
+        return windowsInfo.computerName;
+      }
+    } catch (e) {
+      return 'error_getting_device_id';
+    }
+
+    return 'unknown';
+  }
+
 }
