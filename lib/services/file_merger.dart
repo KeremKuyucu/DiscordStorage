@@ -6,17 +6,18 @@ import 'package:DiscordStorage/services/notification_service.dart';
 import 'package:DiscordStorage/services/discord_service.dart';
 import 'package:DiscordStorage/services/path_service.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
-import 'package:DiscordStorage/services/localization_service.dart';
+import 'package:DiscordStorage/services/localization_service.dart'; // Eklendi
 
-class Link {
+// Link sınıfını URL'i de içerecek şekilde güncelleyelim.
+class RichLink {
   final int partNumber;
-  final String channelId;
-  final String messageId;
+  final String url;
 
-  Link(this.partNumber, this.channelId, this.messageId);
+  RichLink(this.partNumber, this.url);
 }
 
 class FileMerger {
+  int partSize = 8 * 1024 * 1024;
   FileDownloader downloader = FileDownloader();
   final NotificationService notificationService = NotificationService.instance;
   final FileDownloader fileDownloader = FileDownloader();
@@ -27,136 +28,138 @@ class FileMerger {
   FileMerger();
 
   Future<void> mergeFiles(String filePath) async {
-    Logger.log('splitFileAndUpload started');
+    Logger.log('mergeFiles process started');
 
-    // Read file content
+    // --- YENİ EKLENENLER: ID ve Kronometre ---
+    final int notificationId = DateTime.now().millisecondsSinceEpoch;
+    final Stopwatch stopwatch = Stopwatch();
+
+    // ... dosya okuma ve temel kontroller ...
     final file = File(filePath);
-
-    if (!await file.exists()) {
-      Logger.error('File not found: $filePath');
-      return;
-    }
-
+    if (!await file.exists()) { /*...*/ return; }
     final content = await file.readAsString();
-
     final lines = LineSplitter.split(content).toList();
-    Logger.log('Total number of lines: ${lines.length}');
-
-    if (lines.isEmpty) {
-      Logger.error('Links file is empty!');
-      return;
-    }
-
+    if (lines.isEmpty) { /*...*/ return; }
     final totalParts = int.tryParse(lines[0]) ?? 0;
-    Logger.log('Total parts count: $totalParts');
-
-    if (totalParts <= 0 || lines.length < 4) {
-      Logger.error('Invalid links file format!');
-      return;
-    }
+    if (totalParts <= 0 || lines.length < 4) { /*...*/ return; }
 
     final downloadsDir = await pathHelper.getDownloadsDirectoryPath();
     final targetFileName = lines[1];
     final targetFilePath = '$downloadsDir${Platform.pathSeparator}$targetFileName';
-    final hash = lines[2];
-    final webhook = lines[3];
-    Logger.log('Target file name: $targetFileName');
-    Logger.log('Target file path: $targetFilePath');
-    Logger.log('Expected file hash: $hash');
-    Logger.log('Webhook URL: $webhook');
+    final expectedHash = lines[2];
 
-    final List<Link> links = [];
-
+    Logger.log('--- Phase 1: Fetching all part URLs ---');
+    final List<RichLink> richLinks = [];
     for (int i = 4; i < lines.length; i++) {
       try {
         final jsonObj = jsonDecode(lines[i]);
-        final partNumber = jsonObj['partNo'];
-        final channelId = jsonObj['channelId'];
-        final messageId = jsonObj['messageId'];
-        links.add(Link(partNumber, channelId, messageId));
-        Logger.log('Link added: partNo=$partNumber, channelId=$channelId, messageId=$messageId');
+        final url = await discordService.getFileUrl(jsonObj['channelId'], jsonObj['messageId']);
+        richLinks.add(RichLink(jsonObj['partNo'], url));
+        // URL'leri toplarken de kullanıcıya bir "hazırlanıyor" bildirimi gösterebiliriz.
+        await notificationService.showProgressNotification(
+          id: notificationId,
+          current: (i - 3)*partSize, // (i-4+1)
+          total: (lines.length - 4)*partSize,
+          fileName: targetFileName,
+          operation: Language.get('preparing'), // "Hazırlanıyor"
+        );
       } catch (e) {
-        Logger.error('Link parsing error: ${lines[i]}');
+        Logger.error('URL fetching error for line: ${lines[i]} - $e');
         continue;
       }
     }
 
-    if (links.length != totalParts) {
-      Logger.error('Number of links does not match total parts! (${links.length} != $totalParts)');
-      return;
-    }
+    if (richLinks.length != totalParts) { /*...*/ return; }
 
-    links.sort((a, b) => a.partNumber.compareTo(b.partNumber));
+    richLinks.sort((a, b) => a.partNumber.compareTo(b.partNumber));
     Logger.log('Links sorted.');
 
-    final targetFile = File(targetFilePath);
-    final sink = targetFile.openWrite();
-
+    // --- AŞAMA 2: DOSYALARI İNDİRME ---
+    Logger.log('--- Phase 2: Downloading all parts ---');
+    stopwatch.start();
     int downloadedParts = 0;
     final partFiles = <String>[];
+    int totalDownloadedBytes = 0;
 
-    for (final link in links) {
+    for (final link in richLinks) {
       final newFileName = 'part${link.partNumber}.txt';
       final newFilePath = '$downloadsDir${Platform.pathSeparator}$newFileName';
       partFiles.add(newFilePath);
-      Logger.log('Starting file download: $newFilePath');
 
-      final url = await discordService.getFileUrl(link.channelId, link.messageId);
-      Logger.log('File URL retrieved: $url');
+      final downloadedBytes = await fileDownloader.fileDownload(link.url, newFilePath);
+      if (downloadedBytes < 0) { /*...*/ stopwatch.stop(); return; }
 
-      int result = await fileDownloader.fileDownload(url, newFilePath);
-      if (result != 0) {
-        Logger.error('File could not be downloaded -> $newFilePath');
-        return;
+      totalDownloadedBytes += downloadedBytes;
+      downloadedParts++;
+
+      // Hız ve süre hesabı
+      double? speedMbps;
+      Duration? estimatedTime;
+      if (stopwatch.elapsedMilliseconds > 500) {
+        final bytesPerSecond = (totalDownloadedBytes / stopwatch.elapsedMilliseconds) * 1000;
+        speedMbps = bytesPerSecond / (1024 * 1024);
+        final averagePartSize = totalDownloadedBytes / downloadedParts;
+        final remainingBytes = (totalParts - downloadedParts) * averagePartSize;
+        if (bytesPerSecond > 0) {
+          estimatedTime = Duration(seconds: (remainingBytes / bytesPerSecond).round());
+        }
       }
 
-      downloadedParts++;
-      Logger.log('Downloaded parts count: $downloadedParts/$totalParts');
-      await notificationService.showProgressNotification(downloadedParts, totalParts);
+      await notificationService.showProgressNotification(
+        id: notificationId,
+        current: downloadedParts*partSize,
+        total: totalParts*partSize,
+        fileName: targetFileName,
+        operation: Language.get('downloading'),
+        speed: speedMbps,
+        estimatedTime: estimatedTime,
+      );
     }
+    stopwatch.stop();
 
+    // --- AŞAMA 3: DOSYALARI BİRLEŞTİRME ---
+    Logger.log('--- Phase 3: Merging all parts ---');
+    final targetFile = File(targetFilePath);
+    final sink = targetFile.openWrite();
+    stopwatch.reset();
+    stopwatch.start();
     int mergedParts = 0;
+
     for (final partFileName in partFiles) {
       final partFile = File(partFileName);
-      Logger.log('Merging part: $partFileName');
-
       if (await partFile.exists()) {
-        final bytes = await partFile.readAsBytes();
-        sink.add(bytes);
+        sink.add(await partFile.readAsBytes());
         mergedParts++;
-        Logger.log('Merged parts count: $mergedParts/$totalParts');
-        await notificationService.showProgressNotification(mergedParts, totalParts);
+        await notificationService.showProgressNotification(
+          id: notificationId,
+          current: mergedParts*partSize,
+          total: totalParts*partSize,
+          fileName: targetFileName,
+          operation: Language.get('merging'),
+        );
         await partFile.delete();
-        Logger.log('Part file deleted: $partFileName');
-      } else {
-        Logger.error('Part file not found -> $partFileName');
       }
     }
-
+    stopwatch.stop();
     await sink.close();
-    Logger.log('Write operation completed: $targetFilePath');
 
+    await notificationService.cancelNotification(notificationId); // İlerleme bildirimini temizle
     final calculatedHash = await fileHash.getFileHash(targetFilePath);
-    Logger.log('Calculated hash: $calculatedHash');
 
-    if (calculatedHash != hash) {
-      Logger.error('File hash mismatch! The file may be corrupted.');
+    if (calculatedHash != expectedHash) {
+      Logger.error('File hash mismatch!');
       await notificationService.showNotification(
-        Language.get('hashMismatchTitle'),
-        Language.get('hashMismatchBody'),
-        id: 1,
+        Language.get('hashMismatchTitle'), // "Hash Uyuşmazlığı"
+        Language.get('hashMismatchBody'),  // "Dosya bozuk olabilir..."
         playSound: true,
       );
     } else {
       Logger.log('Successful File verified.');
       await notificationService.showNotification(
-        Language.get('verifySuccessTitle'),
-        Language.get('verifySuccessBody'),
-        id: 2,
+        Language.get('verifySuccessTitle'), // "İndirme Tamamlandı"
+        '$targetFileName ${Language.get('verifySuccessBody')}', // "... başarıyla indirildi."
         playSound: true,
       );
     }
-
-    Logger.log('mergeFiles operation completed.');
   }
 }

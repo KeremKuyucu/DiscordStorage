@@ -1,8 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 bool debugMode = true;
 
@@ -28,8 +26,6 @@ class Logger {
     if (!_isWriting) {
       _processQueue();
     }
-
-    _sendSingleLogToDiscord(logMessage);
   }
 
   static void error(String message) {
@@ -42,31 +38,6 @@ class Logger {
     _writeQueue.add(logMessage);
     if (!_isWriting) {
       _processQueue();
-    }
-
-    _sendSingleLogToDiscord(logMessage);
-  }
-
-  static void _sendSingleLogToDiscord(String message) async {
-    try {
-      final url = Uri.parse("https://keremkk.glitch.me/discordstorage/dslog");
-      final body = jsonEncode({
-        "message": jsonEncode({
-          "log": message,
-        })
-      });
-
-      final response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: body,
-      );
-
-      if (response.statusCode != 200) {
-        error("❗ Log sending failed: ${response.statusCode} ${response.body}");
-      }
-    } catch (e) {
-      error("❌ Log sending error: $e");
     }
   }
 

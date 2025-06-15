@@ -14,6 +14,7 @@ import 'package:path/path.dart' as path;
 import 'package:DiscordStorage/services/utilities.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:DiscordStorage/services/localization_service.dart';
 
 class Filespliter {
   int partSize = 8 * 1024 * 1024;
@@ -30,6 +31,11 @@ class Filespliter {
     String fileName = path.basename(filePath);
     Directory tempDirectory = await getTemporaryDirectory();
     String tempDir = tempDirectory.path;
+
+    // --- YENİ EKLENENLER: HIZ VE SÜRE HESABI İÇİN ---
+    double? speedMbps;
+    Duration? estimatedTime;
+    final int notificationId = DateTime.now().millisecondsSinceEpoch; // Her yükleme için benzersiz ID
 
     try {
       int availablePartNumber = 0;
@@ -73,6 +79,7 @@ class Filespliter {
       }
 
       RandomAccessFile raf = await file.open(mode: FileMode.read);
+      final Stopwatch stopwatch = Stopwatch()..start(); // Kronometreyi başlat
       for (int i = availablePartNumber; i < totalParts; i++) {
         int currentPartSize = min(partSize, fileSize - i * partSize);
         await raf.setPosition(i * partSize);
@@ -87,10 +94,39 @@ class Filespliter {
         String message = 'File Part: ${i + 1}';
         await fileUploader.fileUpload(createdWebhook, partFilename, i + 1, message, 1, linksTxt);
 
-        notificationService.showProgressNotification(i + 1, totalParts);
+        // --- BİLDİRİM ÇAĞRISININ SON HALİ ---
+
+        // Geçen süreyi ve yüklenen boyutu hesapla
+        final int elapsedMilliseconds = stopwatch.elapsedMilliseconds;
+        final int uploadedBytes = (i-availablePartNumber + 1) * partSize;
+
+        // Hızı hesapla (byte/saniye), sıfıra bölünmeyi önle
+        if (elapsedMilliseconds > 500) { // Hız ölçümü için en az yarım saniye geçsin
+          final double bytesPerSecond = (uploadedBytes / elapsedMilliseconds) * 1000;
+          speedMbps = bytesPerSecond / (1024 * 1024); // MB/s'ye çevir
+
+          // Kalan süreyi hesapla
+          final int remainingBytes = fileSize - uploadedBytes -availablePartNumber*partSize;
+          if (bytesPerSecond > 0) {
+            final int remainingSeconds = (remainingBytes / bytesPerSecond).round();
+            estimatedTime = Duration(seconds: remainingSeconds);
+          }
+        }
+
+        await notificationService.showProgressNotification(
+          id: notificationId,
+          current: (i + 1)*partSize,
+          total: totalParts*partSize,
+          fileName: fileName,
+          operation: Language.get('uploading'), // Lokalizasyondan "Yükleniyor" gibi bir metin alabilirsin
+          showSpeed: true,
+          speed: speedMbps,
+          estimatedTime: estimatedTime,
+        );
       }
       await raf.close();
       Logger.log('All parts loaded successfully.');
+      stopwatch.stop();
 
     } catch (e) {
       Logger.error('Error loading: $e');

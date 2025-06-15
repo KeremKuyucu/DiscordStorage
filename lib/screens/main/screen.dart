@@ -239,6 +239,9 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
   }
 
   Future<void> _shareFile(String fileName, String channelId) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$fileName ${Language.get('shareFileDownloading')}')),
+    );
     final messages = await discordService.getMessages(channelId, 1);
 
     final lastMessageContent = messages.first;
@@ -251,10 +254,14 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
 
     final url = await discordService.getFileUrl(channelIdFromMessage, messageId);
     await fileDownloader.fileDownload(url,filePath);
-    fileShare.generateLinkFileAndShare(filePath);
+    await fileShare.generateLinkFileAndShare(filePath);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$fileName ${Language.get('shareFileDownloaded')}')),
     );
+    final linkFile = File(filePath);
+    if (await linkFile.exists()) {
+      await linkFile.delete();
+    }
   }
 
   void _showDeleteConfirmationDialog(String name, bool isFolder, String channelId) {

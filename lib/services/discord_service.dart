@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:DiscordStorage/services/utilities.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
@@ -103,29 +106,65 @@ class DiscordService {
     }
   }
 
-  Future<String> getFileUrl(String channelId, String messageId) async {
-    try {
-      var response = await http.get(
-        Uri.parse('https://discord.com/api/v10/channels/$channelId/messages/$messageId'),
-        headers: _headers,
-      );
+  Future<String> getFileUrl(
+      String channelId,
+      String messageId, {
+        int maxRetries = 3, // Toplam deneme sayısı
+        Duration initialDelay = const Duration(seconds: 1), // İlk denemeden sonraki bekleme süresi
+      }) async {
 
-      if (response.statusCode == 200) {
-        Map<String, dynamic> jsonResponse = jsonDecode(response.body);
-        if (jsonResponse.containsKey('attachments') && jsonResponse['attachments'].isNotEmpty) {
-          String url = jsonResponse['attachments'][0]['url'];
-          Logger.log('File URL retrieved: $url');
-          return url;
-        } else {
-          Logger.error('No file found in the message.');
+    // Döngü, ilk deneme dahil olmak üzere 'maxRetries' kadar çalışacak.
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        Logger.log('Attempt $attempt/$maxRetries: Getting file URL for message $messageId');
+
+        var response = await http.get(
+          Uri.parse('https://discord.com/api/v10/channels/$channelId/messages/$messageId'),
+          headers: _headers,
+        ).timeout(const Duration(seconds: 15)); // İsteğin 15 saniyeden uzun sürmesi durumunda hata fırlat
+
+        // 1. Başarılı Durum: URL bulundu, döngüden çık ve URL'i döndür.
+        if (response.statusCode == 200) {
+          Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+          if (jsonResponse.containsKey('attachments') && jsonResponse['attachments'].isNotEmpty) {
+            String url = jsonResponse['attachments'][0]['url'];
+            Logger.log('Success! File URL retrieved: $url');
+            return url;
+          } else {
+            // Mantıksal Hata: Mesaj var ama içinde ek yok. Tekrar denemek anlamsız.
+            Logger.error('Logical Error: No attachment found in the message. Not retrying.');
+            return ''; // Boş döndürerek işlemi sonlandır.
+          }
         }
-      } else {
-        Logger.error('Error getting file URL: ${response.statusCode}');
+
+        // 2. Tekrar Denenmeyecek Hatalar: 404 (Not Found) gibi.
+        if (response.statusCode == 404 || response.statusCode == 403 || response.statusCode == 401) {
+          Logger.error('Client Error: ${response.statusCode}. The resource may not exist or you may not have permission. Not retrying.');
+          return ''; // Tekrar denemek anlamsız, boş döndür.
+        }
+
+        // 3. Diğer Sunucu Hataları (5xx gibi): Bu durumda döngünün sonuna gidip tekrar deneyeceğiz.
+        Logger.error('Server or Network Error on attempt $attempt: Status code ${response.statusCode}');
+
+      } on TimeoutException {
+        Logger.error('Request timed out on attempt $attempt.');
+      } on SocketException {
+        Logger.error('Network error (SocketException) on attempt $attempt. Check internet connection.');
+      } catch (e) {
+        Logger.error('An unexpected exception occurred on attempt $attempt: $e');
       }
-    } catch (e) {
-      Logger.error('getFileUrl exception: $e');
+
+      // Başarılı olamadıysak ve son deneme değilse, bekle ve tekrar dene.
+      if (attempt < maxRetries) {
+        // Her denemede bekleme süresini 2 ile çarp (1s, 2s, 4s...)
+        final delay = initialDelay * pow(2, attempt - 1);
+        Logger.log('Waiting for ${delay.inSeconds} seconds before retrying...');
+        await Future.delayed(delay);
+      }
     }
 
+    // Tüm denemeler başarısız olduysa...
+    Logger.error('All $maxRetries attempts failed for message $messageId.');
     return '';
   }
 

@@ -45,7 +45,7 @@ class UpdateChecker {
 
           String updateNotes = latestRelease['body'] ?? 'No release notes available';
           String html = md.markdownToHtml(updateNotes);
-          String releasePageUrl = 'https://github.com/$repoOwner/$repoName/releases';
+          String releasePageUrl = 'https://github.com/$repoOwner/$repoName/releases/latest';
 
           if (remoteVersion != localVersion) {
             Logger.log('New version found: $remoteVersion');

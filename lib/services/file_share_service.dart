@@ -4,14 +4,23 @@ import 'package:DiscordStorage/services/file_hash_service.dart';
 import 'package:DiscordStorage/services/path_service.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
 import 'package:DiscordStorage/services/discord_service.dart';
+// Gerekli servisleri import ediyoruz
+import 'package:DiscordStorage/services/notification_service.dart';
+import 'package:DiscordStorage/services/localization_service.dart';
 
 class FileShare {
+  int partSize = 8 * 1024 * 1024;
   final PathHelper pathHelper = PathHelper();
   final FileHash fileHash = FileHash();
   final DiscordService discordService = DiscordService();
+  final NotificationService notificationService = NotificationService.instance;
 
   Future<void> generateLinkFileAndShare(String filePath) async {
     Logger.log('Creating link file...');
+
+    // --- YENİ EKLENENLER: ID ve Kronometre ---
+    final int notificationId = DateTime.now().millisecondsSinceEpoch;
+    final Stopwatch stopwatch = Stopwatch();
 
     final file = File(filePath);
     if (!await file.exists()) {
@@ -19,56 +28,84 @@ class FileShare {
       return;
     }
 
-    final content = await file.readAsString();
-    final lines = LineSplitter.split(content).toList();
-    Logger.log('Total number of lines: ${lines.length}');
+    // try...finally bloğu, bir hata olsa bile kronometrenin durmasını sağlar.
+    try {
+      stopwatch.start(); // Kronometreyi başlat
 
-    if (lines.isEmpty) {
-      Logger.error('Links file is empty!');
-      return;
-    }
+      final content = await file.readAsString();
+      final lines = LineSplitter.split(content).toList();
+      if (lines.isEmpty) { /*...*/ return; }
 
-    final totalParts = int.tryParse(lines[0]) ?? 0;
-    if (totalParts <= 0 || lines.length < 4) {
-      Logger.error('Invalid links file format!');
-      return;
-    }
+      final totalParts = int.tryParse(lines[0]) ?? 0;
+      if (totalParts <= 0 || lines.length < 4) { /*...*/ return; }
 
-    final downloadsDir = await pathHelper.getDownloadsDirectoryPath();
-    final fileName = lines[1];
-    final hash = lines[2];
+      final downloadsDir = await pathHelper.getDownloadsDirectoryPath();
+      final fileName = lines[1];
+      final hash = lines[2];
 
-    final buffer = StringBuffer();
-    buffer.writeln(totalParts);
-    buffer.writeln(fileName);
-    buffer.writeln(hash);
+      final buffer = StringBuffer();
+      buffer.writeln(totalParts);
+      buffer.writeln(fileName);
+      buffer.writeln(hash);
 
-    for (int i = 4; i < lines.length; i++) {
-      try {
-        final jsonObj = jsonDecode(lines[i]);
-        final partNo = jsonObj['partNo'];
-        final channelId = jsonObj['channelId'];
-        final messageId = jsonObj['messageId'];
+      // Toplam işlem sayısı (başlık satırlarını çıkarıyoruz)
+      final totalOperations = lines.length - 4;
 
-        final url = await discordService.getFileUrl(channelId, messageId);
-        Logger.log('[$partNo] URL: $url');
+      for (int i = 4; i < lines.length; i++) {
+        // Mevcut ilerleme (1'den başlar)
+        final currentProgress = i - 3;
 
-        final partInfo = {
-          'partNo': partNo,
-          'partUrl': url,
-        };
+        try {
+          final jsonObj = jsonDecode(lines[i]);
+          final partNo = jsonObj['partNo'];
+          final channelId = jsonObj['channelId'];
+          final messageId = jsonObj['messageId'];
 
-        buffer.writeln(jsonEncode(partInfo));
-      } catch (e) {
-        Logger.error('Link parsing error: ${lines[i]}');
-        continue;
+          // Discord'dan URL'i al (zaman alan işlem bu)
+          final url = await discordService.getFileUrl(channelId, messageId);
+          Logger.log('[$partNo] URL: $url');
+
+          final partInfo = {
+            'partNo': partNo,
+            'partUrl': url,
+          };
+
+          buffer.writeln(jsonEncode(partInfo));
+
+          // --- BİLDİRİM GÜNCELLEME ---
+          Duration? estimatedTime;
+          // Ortalama işlem süresine göre kalan süreyi tahmin et
+          if (stopwatch.elapsedMilliseconds > 500) {
+            final avgTimePerLink = stopwatch.elapsedMilliseconds / currentProgress;
+            final remainingLinks = totalOperations - currentProgress;
+            final estimatedMilliseconds = remainingLinks * avgTimePerLink;
+            estimatedTime = Duration(milliseconds: estimatedMilliseconds.round());
+          }
+
+          await notificationService.showProgressNotification(
+            id: notificationId,
+            current: currentProgress,
+            total: totalOperations,
+            fileName: fileName,
+            operation: Language.get('creatingShareLink'), // "Paylaşım linki oluşturuluyor"
+            estimatedTime: estimatedTime,
+          );
+
+        } catch (e) {
+          Logger.error('Link parsing error: ${lines[i]}');
+          continue;
+        }
       }
+
+      final linkFilePath = '$downloadsDir${Platform.pathSeparator}$fileName.links.txt';
+      final linkFile = File(linkFilePath);
+      await linkFile.writeAsString(buffer.toString());
+
+      Logger.log('Link file created: $linkFilePath');
+      // showProgressNotification, işlem bittiğinde otomatik olarak "Tamamlandı" bildirimini gösterecektir.
+
+    } finally {
+      stopwatch.stop(); // Kronometreyi her durumda durdur.
     }
-
-    final linkFilePath = '$downloadsDir${Platform.pathSeparator}$fileName.links.txt';
-    final linkFile = File(linkFilePath);
-    await linkFile.writeAsString(buffer.toString());
-
-    Logger.log('Link file created: $linkFilePath');
   }
 }
