@@ -1,3 +1,4 @@
+import 'package:DiscordStorage/services/localization_service.dart';
 import 'package:flutter/material.dart';
 import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
 
@@ -8,11 +9,6 @@ import 'package:DiscordStorage/screens/settings/screen.dart';
 int selectedIndex = 0;
 
 class BottomNavBarWidget extends StatefulWidget {
-  final List<String> titles;
-
-  const BottomNavBarWidget({Key? key, required this.titles}) : super(key: key);
-
-  @override
   State<BottomNavBarWidget> createState() => _BottomNavBarWidgetState();
 }
 
@@ -45,12 +41,12 @@ class _BottomNavBarWidgetState extends State<BottomNavBarWidget> {
       items: [
         SalomonBottomBarItem(
           icon: Icon(Icons.home),
-          title: Text(widget.titles[0]),
+          title: Text(Language.get('files')),
           selectedColor: Theme.of(context).colorScheme.primary,
         ),
         SalomonBottomBarItem(
           icon: Icon(Icons.settings),
-          title: Text(widget.titles[1]),
+          title: Text(Language.get('settings')),
           selectedColor: Theme.of(context).colorScheme.primary,
         ),
       ],

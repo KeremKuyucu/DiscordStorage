@@ -240,7 +240,7 @@ class FileSystemService {
         return false;
       }
 
-      final fileName = 'indirilen_dosya.json'; // Geçici ya da kalıcı bir dosya adı belirle
+      final fileName = 'temp_file.json'; // Geçici ya da kalıcı bir dosya adı belirle
       final downloader = FileDownloader();
 
       final downloadResult = await downloader.fileDownload(url, fileName);

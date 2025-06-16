@@ -6,7 +6,7 @@ String createdWebhook = "";
 
 final List<String> languageCodes = ['en', 'tr'];
 
-String languageCode = '';
+String languageCode = 'en';
 String guildId = '';
 String categoryId = '';
 String token = '';

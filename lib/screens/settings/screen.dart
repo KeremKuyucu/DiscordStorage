@@ -241,12 +241,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavBarWidget(
-        titles: [
-          Language.get('files'),
-          Language.get('settings'),
-        ],
-      ),
+      bottomNavigationBar: BottomNavBarWidget(),
     );
   }
 }

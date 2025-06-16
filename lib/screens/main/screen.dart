@@ -18,6 +18,7 @@ import 'package:DiscordStorage/services/shared_file_merger.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
 import 'package:DiscordStorage/services/localization_service.dart';
 import 'package:DiscordStorage/services/developer_info.dart';
+import 'package:DiscordStorage/services/update_checker_service.dart';
 
 class DiscordStorageLobi extends StatefulWidget {
   @override
@@ -34,20 +35,20 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
   late final PathHelper pathHelper = PathHelper();
   late final FileShare fileShare = FileShare();
   late final SettingsService settingsService = SettingsService();
-
   @override
   void initState() {
     super.initState();
-    fileSystemService.load().then((_) {
-      setState(() {});
-    });
     _initializeGame();
   }
 
   Future<void> _initializeGame() async {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-    });
     await settingsService.loadSettings();
+    fileSystemService.load().then((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+    UpdateChecker( context: context,  repoOwner: 'KeremKuyucu',  repoName: 'DiscordStorage', ).checkForUpdate();
     setState(()  {
       Language.load(languageCode);
       if (isDarkMode) {
@@ -505,12 +506,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
           );
         },
       ),
-      bottomNavigationBar: BottomNavBarWidget(
-        titles: [
-          Language.get('files'),
-          Language.get('settings'),
-        ],
-      ),
+      bottomNavigationBar: BottomNavBarWidget(),
     );
   }
 

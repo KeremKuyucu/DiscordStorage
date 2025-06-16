@@ -7,6 +7,7 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:easy_url_launcher/easy_url_launcher.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
 
+
 class UpdateChecker {
   final BuildContext context;
   final String repoOwner;
