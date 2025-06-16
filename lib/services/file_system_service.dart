@@ -6,6 +6,7 @@ import 'package:DiscordStorage/services/upload_service.dart';
 import 'package:DiscordStorage/services/utilities.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
+import 'package:path_provider/path_provider.dart';
 
 class FileSystemService {
   final FileUploader fileUploader = FileUploader();
@@ -239,8 +240,9 @@ class FileSystemService {
         Logger.error('Dosya URL\'si alınamadı.');
         return false;
       }
-
-      final fileName = 'temp_file.json'; // Geçici ya da kalıcı bir dosya adı belirle
+      Directory tempDirectory = await getTemporaryDirectory();
+      String tempDir = tempDirectory.path;
+      final fileName = '$tempDir/temp_file.json'; // Geçici ya da kalıcı bir dosya adı belirle
       final downloader = FileDownloader();
 
       final downloadResult = await downloader.fileDownload(url, fileName);
