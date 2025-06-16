@@ -14,26 +14,6 @@ class DiscordService {
     'Content-Type': 'application/json',
   };
 
-  Future<void> renameChannel({
-    required String channelId,
-    required String newName,
-  }) async {
-    final url = Uri.parse('https://discord.com/api/v10/channels/$channelId');
-
-    final response = await http.patch(
-      url,
-      headers: _headers,
-      body: jsonEncode({'name': newName}),
-    );
-
-    if (response.statusCode == 200) {
-      Logger.log('Channel name successfully changed to: $newName');
-    } else {
-      Logger.error('Failed to change channel name: ${response.statusCode}');
-      Logger.error(response.body);
-    }
-  }
-
   Future<bool> checkAndSaveToken(String token) async {
     Logger.log('Starting token validation...');
     try {
@@ -56,7 +36,81 @@ class DiscordService {
       return false;
     }
   }
+  Future<String> getOrCreateMainStorageChannel() async {
+    final String channelToFind = 'discord-storage-main-shard-persistent-data-9b1e';
+    final String desiredTopic = 'Disbox Storage System | Please do not edit or create duplicates.';
 
+    try {
+      // --- 1. ADIM: Kanalın mevcut olup olmadığını kontrol et ---
+      Logger.log('Searching for "$channelToFind" channel...');
+      final listUrl = Uri.parse('https://discord.com/api/v10/guilds/$guildId/channels');
+      final listResponse = await http.get(listUrl, headers: _headers);
+
+      if (listResponse.statusCode == 200) {
+        final List<dynamic> allChannels = jsonDecode(listResponse.body);
+        final existingChannel = allChannels.firstWhere(
+              (channel) =>
+          channel['parent_id'] == categoryId &&
+              channel['name'] == channelToFind,
+          orElse: () => null,
+        );
+
+        if (existingChannel != null) {
+          final channelId = existingChannel['id'];
+          Logger.log('"$channelToFind" channel already exists. ID: $channelId');
+
+          // ✅ YENİ: Kanal başlığını kontrol et ve gerekirse ayarla.
+          final currentTopic = existingChannel['topic'];
+          if (currentTopic == null || currentTopic != desiredTopic) {
+            Logger.log('Channel topic is missing or incorrect. Setting it now...');
+            await _setChannelTopic(channelId, desiredTopic);
+          }
+
+          return channelId; // Kanal zaten var, ID'sini döndür.
+        }
+      } else {
+        Logger.error('Could not fetch channel list: ${listResponse.statusCode}');
+      }
+
+      // --- 2. ADIM: Kanal bulunamadıysa oluştur ---
+      Logger.log('"$channelToFind" channel not found. Creating a new one...');
+      // ... (kanal oluşturma kodunun bu kısmı aynı kalıyor)
+      final newChannelId = await createChannel(channelToFind);
+
+      if (newChannelId != null) {
+        Logger.log('Channel created: $channelToFind (ID: $newChannelId)');
+
+        // ✅ YENİ: Kanal sıfırdan oluşturulduğu için başlığını doğrudan ayarla.
+        await _setChannelTopic(newChannelId, desiredTopic);
+
+        await createWebhook(newChannelId, 'File Uploader');
+        return newChannelId;
+      } else {
+        Logger.error('Channel creation failed: $channelToFind');
+        return "";
+      }
+
+    } catch (e) {
+      Logger.error('getOrCreateMainStorageChannel error: $e');
+      return "";
+    }
+  }
+  Future<void> _setChannelTopic(String channelId, String topic) async {
+    final url = Uri.parse('https://discord.com/api/v10/channels/$channelId');
+    final body = jsonEncode({'topic': topic});
+
+    try {
+      // Kanal güncellemek için PATCH metodu kullanılır.
+      final response = await http.patch(url, headers: _headers, body: body);
+      if (response.statusCode == 200) {
+        Logger.log('Channel topic has been set for channel ID: $channelId');
+      } else {
+        Logger.error('Failed to set channel topic: ${response.body}');
+      }
+    } catch (e) {
+      Logger.error('_setChannelTopic error: $e');
+    }
+  }
   Future<List<Map<String, String>>> getChannelsInCategory() async {
     final url = Uri.parse('https://discord.com/api/v10/guilds/$guildId/channels');
 
@@ -67,7 +121,9 @@ class DiscordService {
         final List<dynamic> channels = jsonDecode(response.body);
 
         final filteredChannels = channels.where((channel) =>
-        channel['parent_id'] == categoryId && channel['type'] != 4
+        channel['parent_id'] == categoryId &&
+            channel['type'] != 4 &&
+            channel['name'] != 'discord-storage-main-shard-persistent-data-9b1e'
         );
 
         Logger.log('Fetched ${filteredChannels.length} channels in category.');
@@ -103,6 +159,26 @@ class DiscordService {
     } catch (e) {
       Logger.error('deleteDiscordChannel error: $e');
       return false;
+    }
+  }
+
+  Future<void> renameChannel({
+    required String channelId,
+    required String newName,
+  }) async {
+    final url = Uri.parse('https://discord.com/api/v10/channels/$channelId');
+
+    final response = await http.patch(
+      url,
+      headers: _headers,
+      body: jsonEncode({'name': newName}),
+    );
+
+    if (response.statusCode == 200) {
+      Logger.log('Channel name successfully changed to: $newName');
+    } else {
+      Logger.error('Failed to change channel name: ${response.statusCode}');
+      Logger.error(response.body);
     }
   }
 
@@ -166,6 +242,40 @@ class DiscordService {
     // Tüm denemeler başarısız olduysa...
     Logger.error('All $maxRetries attempts failed for message $messageId.');
     return '';
+  }
+
+  Future<String?> getLatestFileUrl({required String channelId}) async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://discord.com/api/v10/channels/$channelId/messages?limit=1'),
+        headers: _headers,
+      );
+
+      if (response.statusCode != 200) {
+        Logger.error('Son mesaj alınamadı: ${response.body}');
+        return null;
+      }
+
+      final List<dynamic> messages = jsonDecode(response.body);
+      if (messages.isEmpty) {
+        Logger.log('Kanaldan hiç mesaj gelmedi.');
+        return null;
+      }
+
+      final latestMessage = messages.first;
+      final attachments = latestMessage['attachments'] as List;
+      if (attachments.isNotEmpty) {
+        final fileUrl = attachments.first['url'];
+        Logger.log('Son dosya bağlantısı bulundu: $fileUrl');
+        return fileUrl;
+      } else {
+        Logger.log('Son mesajda dosya ekleri bulunamadı.');
+      }
+    } catch (e) {
+      Logger.error('getLatestFileUrl hatası: $e');
+    }
+
+    return null;
   }
 
   Future<String?> createWebhook(String channelId, String name) async {

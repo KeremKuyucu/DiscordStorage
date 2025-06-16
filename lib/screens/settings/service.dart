@@ -7,22 +7,20 @@ import 'package:DiscordStorage/services/utilities.dart';
 class SettingsService {
   final DiscordService discordService = DiscordService();
 
-  Future<Map<String, dynamic>> loadSettings() async {
+  Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final storedToken = prefs.getString('bot_token') ?? '';
-    final storedGuildId = prefs.getString('guild_id') ?? '';
-    final storedCategoryId = prefs.getString('category_id') ?? '';
-    final storedDarkMode = prefs.getBool('is_dark_mode') ?? false;
-    final storedLanguageCode = prefs.getString('language_code') ?? 'en';
-
-    return {
-      'token': storedToken,
-      'guildId': storedGuildId,
-      'categoryId': storedCategoryId,
-      'is_dark_mode': storedDarkMode,
-      'language_code': storedLanguageCode,
-    };
+    token = prefs.getString('bot_token') ?? '';
+    guildId = prefs.getString('guild_id') ?? '';
+    categoryId = prefs.getString('category_id') ?? '';
+    isDarkMode = prefs.getBool('is_dark_mode') ?? false;
+    languageCode = prefs.getString('language_code') ?? 'en';
+    String? temp =prefs.getString('storage_channel');
+    if(temp==null || temp.isEmpty) {
+      temp = await discordService.getOrCreateMainStorageChannel();
+      await prefs.setString('storage_channel',temp );
+    }
+    storageChannelId = temp;
   }
 
   // Ayarları kaydet
@@ -55,6 +53,7 @@ class SettingsService {
        SnackBar(content: Text(Language.get('tokenValid'))),
     );
 
+    loadSettings();
     return true;
   }
 

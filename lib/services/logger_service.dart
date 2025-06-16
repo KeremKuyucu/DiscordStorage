@@ -78,7 +78,7 @@ class Logger {
 
   static Future<File> _getLogFile() async {
     final dir = await getApplicationDocumentsDirectory();
-    return File('${dir.path}/app_logs.txt');
+    return File('${dir.path}/discordstorage_logs.txt');
   }
 
   static String _getCallerInfo() {

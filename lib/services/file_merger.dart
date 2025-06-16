@@ -17,7 +17,7 @@ class RichLink {
 }
 
 class FileMerger {
-  int partSize = 8 * 1024 * 1024;
+  int partSize = 10475274;
   FileDownloader downloader = FileDownloader();
   final NotificationService notificationService = NotificationService.instance;
   final FileDownloader fileDownloader = FileDownloader();
@@ -58,8 +58,8 @@ class FileMerger {
         // URL'leri toplarken de kullanıcıya bir "hazırlanıyor" bildirimi gösterebiliriz.
         await notificationService.showProgressNotification(
           id: notificationId,
-          current: (i - 3)*partSize, // (i-4+1)
-          total: (lines.length - 4)*partSize,
+          current: (i - 3), // (i-4+1)
+          total: (lines.length - 4),
           fileName: targetFileName,
           operation: Language.get('preparing'), // "Hazırlanıyor"
         );

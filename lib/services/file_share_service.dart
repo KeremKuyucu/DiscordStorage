@@ -9,7 +9,6 @@ import 'package:DiscordStorage/services/notification_service.dart';
 import 'package:DiscordStorage/services/localization_service.dart';
 
 class FileShare {
-  int partSize = 8 * 1024 * 1024;
   final PathHelper pathHelper = PathHelper();
   final FileHash fileHash = FileHash();
   final DiscordService discordService = DiscordService();

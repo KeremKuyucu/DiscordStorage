@@ -27,20 +27,9 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _loading = true;
 
   @override
-  @override
   void initState() {
     super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final settings = await settingsService.loadSettings();
-
     setState(() {
-      token = settings['token'];
-      guildId = settings['guildId'];
-      categoryId = settings['categoryId'];
-      isDarkMode = settings['is_dark_mode'];
       _botTokenController.text = token;
       _guildIdController.text = guildId;
       _categoryIdController.text = categoryId;
@@ -56,9 +45,8 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
-  Future<void> _scanPreviouslyUploadedFiles() async {
+  Future<void> _loadFilesLabel() async {
     await fileSystemService.load();
-
     final channels = await discordService.getChannelsInCategory();
 
     for (var channel in channels) {
@@ -72,7 +60,7 @@ class _SettingsPageState extends State<SettingsPage> {
     await fileSystemService.save();
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(Language.get('filesScanned'))),
+      SnackBar(content: Text(Language.get('filesLoaded'))),
     );
   }
 
@@ -164,9 +152,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: _scanPreviouslyUploadedFiles,
+                        onPressed: _loadFilesLabel,
                         icon: Icon(Icons.search),
-                        label: Text(Language.get('scanFilesLabel')),
+                        label: Text(Language.get('loadFilesLabel')),
                         style: OutlinedButton.styleFrom(
                           padding: EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -204,7 +192,6 @@ class _SettingsPageState extends State<SettingsPage> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(Language.get('language'), style: TextStyle(fontSize: 16)),
-                            // Dropdown sağa yaslandı
                             DropdownButton<String>(
                               value: languageCode,
                               items: languageCodes.map((code) {

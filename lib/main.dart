@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:theme_mode_builder/theme_mode_builder.dart';
-
 import 'package:DiscordStorage/screens/main/screen.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
 import 'package:DiscordStorage/services/update_checker_service.dart';
 import 'package:DiscordStorage/services/notification_service.dart';
 import 'package:DiscordStorage/services/permission_service.dart';
+import 'package:DiscordStorage/screens/settings/service.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +31,7 @@ class DiscordStorage extends StatefulWidget {
 }
 
 class DiscordStorageState extends State<DiscordStorage> {
+  late final SettingsService settingsService = SettingsService();
   @override
   void initState() {
     super.initState();

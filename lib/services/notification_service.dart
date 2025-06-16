@@ -165,7 +165,6 @@ class NotificationService {
     }
   }
 
-  /// Gelişmiş ilerleme bildirimi
   Future<void> showProgressNotification({
         required int current,
         required int total,
@@ -445,8 +444,7 @@ class NotificationService {
       case NotificationType.warning:
         return _ChannelInfo(_fileChannelId, 'Uyarı Bildirimleri', 'Uyarı mesajları');
       case NotificationType.info:
-      default:
-        return _ChannelInfo(_fileChannelId, 'Dosya İşlemleri', 'Genel bildirimler');
+      return _ChannelInfo(_fileChannelId, 'Dosya İşlemleri', 'Genel bildirimler');
     }
   }
 
@@ -461,8 +459,7 @@ class NotificationService {
       case NotificationType.progress:
         return const Color(0xFF1976D2);
       case NotificationType.info:
-      default:
-        return const Color(0xFF7B1FA2);
+      return const Color(0xFF7B1FA2);
     }
   }
 
@@ -477,8 +474,7 @@ class NotificationService {
       case NotificationType.progress:
         return '@drawable/ic_download';
       case NotificationType.info:
-      default:
-        return null;
+      return null;
     }
   }
 

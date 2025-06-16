@@ -6,6 +6,9 @@ class Language {
   static Map<String, dynamic> _translations = {};
 
   static Future<void> load(String languageCode) async {
+    if(languageCode.isEmpty){
+      languageCode = 'en';
+    }
     try {
       final jsonString = await rootBundle.loadString('assets/lang/$languageCode.json');
       _translations = json.decode(jsonString);

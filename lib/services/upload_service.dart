@@ -5,12 +5,12 @@ import 'package:DiscordStorage/services/json_functions_service.dart';
 import 'package:DiscordStorage/services/path_service.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
 
-
+bool debugPrint = false;
 class FileUploader {
   final PathHelper pathHelper = PathHelper();
   JsonFunctions jsonFunctions = JsonFunctions();
 
-  Future<void> fileUpload(String webhookUrl, String filePath, int partNo, String message, int silme, String linklerDosyasi) async {
+  Future<void> fileUpload(String webhookUrl, String filePath, int partNo, String message, int delete, String linklerDosyasi) async {
     Logger.log('Uploading file: $filePath, Webhook: $webhookUrl, Part: $partNo');
 
     try {
@@ -24,7 +24,7 @@ class FileUploader {
       if (response.statusCode == 200) {
         Logger.log('File uploaded successfully: $filePath');
 
-        if (silme == 1) {
+        if (delete == 1) {
           try {
             File(filePath).deleteSync();
             Logger.log('File deleted: $filePath');
@@ -33,14 +33,16 @@ class FileUploader {
           }
         }
 
-        Logger.log('Webhook response: $responseData');
+        if(debugPrint) {
+          Logger.log('Webhook response: $responseData');
+        }
 
         Map<String, String> ids = jsonFunctions.findIds(responseData);
         String channelId2 = ids['channelId'] ?? '';
         String messageId2 = ids['messageId'] ?? '';
 
         if (messageId2.isNotEmpty) {
-          if (silme == 1) {
+          if (delete == 1) {
             try {
               File(linklerDosyasi).writeAsStringSync(
                 '${jsonFunctions.writeJson(partNo, channelId2, messageId2)}\n',
@@ -66,6 +68,46 @@ class FileUploader {
 
     } catch (e) {
       Logger.error('Error during fileUpload: $e');
+    }
+  }
+  Future<void> uploadTextAsFileToDiscord({
+    required String message,
+    required String channelId,
+  }) async {
+    try {
+      final tempDir = Directory.systemTemp;
+      final tempFile = File('${tempDir.path}/filesystem.txt');
+      await tempFile.writeAsString(message);
+
+      final uri = Uri.parse('https://discord.com/api/v10/channels/$channelId/messages');
+
+      final request = http.MultipartRequest('POST', uri)
+        ..headers['Authorization'] = 'Bot $token' // global token variable
+        ..fields['content'] = ''
+        ..files.add(
+          await http.MultipartFile.fromPath(
+            'files[0]',
+            tempFile.path,
+            // contentType parameter removed
+          ),
+        );
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        Logger.log('Message successfully uploaded as a file: ${tempFile.path}');
+        if(debugPrint){
+          Logger.log('Response: $responseBody');
+        }
+      } else {
+        Logger.error('Upload failed. Status code: ${response.statusCode}');
+        Logger.error('Response: $responseBody');
+      }
+
+      await tempFile.delete();
+    } catch (e) {
+      Logger.error('Error during upload: $e');
     }
   }
 }

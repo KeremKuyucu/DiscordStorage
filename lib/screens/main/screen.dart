@@ -17,6 +17,7 @@ import 'package:DiscordStorage/services/file_share_service.dart';
 import 'package:DiscordStorage/services/shared_file_merger.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
 import 'package:DiscordStorage/services/localization_service.dart';
+import 'package:DiscordStorage/services/developer_info.dart';
 
 class DiscordStorageLobi extends StatefulWidget {
   @override
@@ -25,37 +26,29 @@ class DiscordStorageLobi extends StatefulWidget {
 
 class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
   List<String> currentPath = [];
-  late Filespliter filespliter = Filespliter();
+  late final Filespliter filespliter = Filespliter();
   late final FileSystemService fileSystemService = FileSystemService();
-  final DiscordService discordService = DiscordService();
-  final FileDownloader fileDownloader = FileDownloader();
-  final FileMerger fileMerger = FileMerger();
-  final PathHelper pathHelper = PathHelper();
-  final FileShare fileShare = FileShare();
-  final SettingsService settingsService = SettingsService();
+  late final DiscordService discordService = DiscordService();
+  late final FileDownloader fileDownloader = FileDownloader();
+  late final FileMerger fileMerger = FileMerger();
+  late final PathHelper pathHelper = PathHelper();
+  late final FileShare fileShare = FileShare();
+  late final SettingsService settingsService = SettingsService();
 
   @override
   void initState() {
     super.initState();
     fileSystemService.load().then((_) {
-      fileSystemService.save();
       setState(() {});
     });
     _initializeGame();
   }
 
-
   Future<void> _initializeGame() async {
     WidgetsBinding.instance.addPostFrameCallback((_) {
     });
-    final settings = await settingsService.loadSettings();
-
-    setState(() {
-      token = settings['token'];
-      guildId = settings['guildId'];
-      categoryId = settings['categoryId'];
-      isDarkMode = settings['is_dark_mode'];
-      languageCode = settings['language_code'];
+    await settingsService.loadSettings();
+    setState(()  {
       Language.load(languageCode);
       if (isDarkMode) {
         ThemeModeBuilderConfig.setDark();
@@ -63,7 +56,8 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
         ThemeModeBuilderConfig.setLight();
       }
     });
-    if (token==''){
+    if (token.isEmpty){
+      selectedIndex = 1;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => SettingsPage()),
@@ -355,7 +349,6 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
     );
   }
 
-
   // ---------------------------------------------------------
 
   @override
@@ -384,87 +377,132 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: currentPath.isNotEmpty
+            ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: _goBack)
+            : IconButton(
+          icon: const Icon(Icons.info_outline),
+          onPressed: () {
+            DeveloperInfo.show(context);
+          },
+        ),
+        iconTheme: const IconThemeData(
+          size: 35.0,
+          color: Colors.blue,
+        ),
         title: Text(
           currentPath.isEmpty ? 'DiscordStorage' : 'DiscordStorage / ${currentPath.join('/')}',
-          style: TextStyle(color: Colors.purple),
+          style: const TextStyle(color: Colors.purple),
         ),
         centerTitle: true,
-        leading: currentPath.isNotEmpty ? IconButton( icon: Icon(Icons.arrow_back), onPressed: _goBack) : null,
-      ),
-      body: ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: displayItems.length,
-      separatorBuilder: (_, __) => Divider(),
-      itemBuilder: (context, index) {
-      final name = displayItems[index];
-
-      if (name == '...') {
-        return DragTarget<Map<String, dynamic>>(
-          onWillAccept: (_) => currentPath.isNotEmpty,
-          onAccept: (data) {
-            fileSystemService.moveItem(
-              data['path'],
-              data['name'],
-              currentPath.sublist(0, currentPath.length - 1),
-            );
-            fileSystemService.save();
-            setState(() {});
-          },
-          builder: (context, candidateData, _) => ListTile(
-            leading: Icon(Icons.arrow_upward, color: Colors.purple),
-            title: Text('...'),
-            onTap: _goBack,
-            tileColor: candidateData.isNotEmpty
-            ? Colors.purple.withOpacity(0.2) : null,
-          ),
-        );
-      }
-
-      final item = currentDir['children'][name];
-      final isFolder = item['type'] == 'folder';
-
-      return DragTarget<Map<String, dynamic>>(
-        onWillAccept: (_) => isFolder,
-        onAccept: (data) {
-          fileSystemService.moveItem(
-            data['path'],
-            data['name'],
-            [...currentPath, name],
-          );
-          fileSystemService.save();
-          setState(() {});
-        },
-        builder: (context, candidateData, _) => Draggable<Map<String, dynamic>>(
-        data: {
-          'name': name,
-          'path': List<String>.from(currentPath),
-        },
-          feedback: Material(
-            color: Colors.transparent,
-            child: Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.deepPurple.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6)],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.insert_drive_file, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text(name, style: TextStyle(color: Colors.white)),
-                ],
-              ),
+        actionsIconTheme: const IconThemeData(
+          size: 35.0,
+          color: Colors.blue,
+        ),
+        actions: [
+          Tooltip(
+            message: Language.get('uploadFileMessage'),
+            child: IconButton(
+              icon: const Icon(Icons.upload_file),
+              onPressed: _pickAndStartUpload,
             ),
           ),
-          childWhenDragging: Opacity(
-          opacity: 0.5,
-          child: _buildListTile(name, isFolder),
-        ),
-        child: _buildListTile(name, isFolder),
-        ),
-        );
+          Tooltip(
+            message: Language.get('createFolderMessage'),
+            child: IconButton(
+              icon: const Icon(Icons.create_new_folder),
+              onPressed: () => _showCreateFolderDialog(context),
+            ),
+          ),
+          Tooltip(
+            message: Language.get('sharedFileDownloadMessage'),
+            child: IconButton(
+              icon: const Icon(Icons.download),
+              onPressed: () => _showDownloadLinkDialog(context),
+            ),
+          ),
+          const SizedBox(width: 24.0),
+        ],
+      ),
+      body: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: displayItems.length,
+        separatorBuilder: (_, __) => Divider(),
+        itemBuilder: (context, index) {
+          final name = displayItems[index];
+
+          if (name == '...') {
+            // HATA BÜYÜK İHTİMALLE BU BLOKTAYDI.
+            // DragTarget'ın 'builder' parametresi burada doğru bir şekilde tanımlanmıştır.
+            return DragTarget<Map<String, dynamic>>(
+              onWillAccept: (_) => currentPath.isNotEmpty,
+              onAccept: (data) {
+                fileSystemService.moveItem(
+                  data['path'],
+                  data['name'],
+                  currentPath.sublist(0, currentPath.length - 1),
+                );
+                fileSystemService.save();
+                setState(() {});
+              },
+              // ZORUNLU OLAN VE HATAYA NEDEN OLAN KISIM BU 'builder' PARAMETRESİDİR.
+              builder: (context, candidateData, rejectedData) => ListTile(
+                leading: Icon(Icons.arrow_upward, color: Colors.purple),
+                title: Text('...'),
+                onTap: _goBack,
+                tileColor: candidateData.isNotEmpty
+                    ? Colors.purple.withOpacity(0.2)
+                    : null,
+              ),
+            );
+          }
+
+          final item = children[name]!; // children'den gelenin null olmayacağını varsayıyoruz.
+          final isFolder = item['type'] == 'folder';
+
+          return DragTarget<Map<String, dynamic>>(
+            onWillAccept: (_) => isFolder,
+            onAccept: (data) {
+              fileSystemService.moveItem(
+                data['path'],
+                data['name'],
+                [...currentPath, name],
+              );
+              fileSystemService.save();
+              setState(() {});
+            },
+            builder: (context, candidateData, rejectedData) => Draggable<Map<String, dynamic>>(
+              data: {
+                'name': name,
+                'path': List<String>.from(currentPath),
+              },
+              feedback: Material(
+                color: Colors.transparent,
+                child: Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurple.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                          isFolder ? Icons.folder : Icons.insert_drive_file,
+                          color: Colors.white),
+                      SizedBox(width: 8),
+                      Text(name, style: TextStyle(color: Colors.white)),
+                    ],
+                  ),
+                ),
+              ),
+              childWhenDragging: Opacity(
+                opacity: 0.5,
+                child: _buildListTile(name, isFolder),
+              ),
+              child: _buildListTile(name, isFolder),
+            ),
+          );
         },
       ),
       bottomNavigationBar: BottomNavBarWidget(
@@ -473,45 +511,6 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
           Language.get('settings'),
         ],
       ),
-
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 16.0, right: 16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Tooltip(
-              message: Language.get('uploadFileMessage'),
-              child: FloatingActionButton(
-                heroTag: 'uploadBtn',
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                onPressed: _pickAndStartUpload,
-                child: Icon(Icons.upload_file, color: Theme.of(context).colorScheme.onPrimary),
-              ),
-            ),
-            SizedBox(height: 10),
-            Tooltip(
-              message: Language.get('createFolderMessage'),
-              child: FloatingActionButton(
-                heroTag: 'createFolderBtn',
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                child: Icon(Icons.create_new_folder, color: Theme.of(context).colorScheme.onPrimary),
-                onPressed: () => _showCreateFolderDialog(context),
-              ),
-            ),
-            SizedBox(height: 10),
-            Tooltip(
-              message: Language.get('sharedFileDownloadMessage'),
-              child: FloatingActionButton(
-                heroTag: 'downloadSharedBtn',
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                child: Icon(Icons.download, color: Theme.of(context).colorScheme.onPrimary),
-                onPressed: () => _showDownloadLinkDialog(context),
-              ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 

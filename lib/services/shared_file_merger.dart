@@ -16,7 +16,7 @@ class Link {
 }
 
 class SharedFileMerger {
-  int partSize = 8 * 1024 * 1024;
+  int partSize = 10475274;
   FileDownloader downloader = FileDownloader();
   final NotificationService notificationService = NotificationService.instance;
   final FileDownloader fileDownloader = FileDownloader();

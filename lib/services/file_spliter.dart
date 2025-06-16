@@ -17,7 +17,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:DiscordStorage/services/localization_service.dart';
 
 class Filespliter {
-  int partSize = 8 * 1024 * 1024;
+  int partSize = 10475274;
   final NotificationService notificationService = NotificationService.instance;
   late FileSystemService fileSystemService = FileSystemService();
   final FileUploader fileUploader = FileUploader();

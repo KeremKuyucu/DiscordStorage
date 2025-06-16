@@ -14,8 +14,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_local_notifications: ^19.2.1
   http: ^1.4.0
-  device_info_plus: ^11.4.0
+  device_info_plus: ^11.5.0
   salomon_bottom_bar: ^3.3.2
+  url_launcher: ^6.3.1
 
   # Update Check
   package_info_plus: ^8.3.0
@@ -26,7 +27,7 @@ dependencies:
 
   # File Select
   permission_handler: ^12.0.0+1
-  file_picker: ^10.1.9
+  file_picker: ^10.2.0
   path: ^1.9.1
   path_provider: ^2.1.5
 
