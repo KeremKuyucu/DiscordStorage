@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:DiscordStorage/screens/settings/service.dart';
 import 'package:DiscordStorage/services/discord_service.dart';
 import 'package:DiscordStorage/services/download_service.dart';
 import 'package:DiscordStorage/services/upload_service.dart';
-import 'package:DiscordStorage/services/utilities.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
 import 'package:path_provider/path_provider.dart';
@@ -227,7 +227,7 @@ class FileSystemService {
 
       // Geçici dosyayı Discord'a yükle
       Logger.log('Uploading backup file to Discord...');
-      await fileUploader.uploadTextAsFileToDiscord(message: jsonString,channelId: storageChannelId);
+      await fileUploader.uploadTextAsFileToDiscord(message: jsonString,channelId: SettingsService.storageChannelId);
 
     } catch (e) {
       Logger.error('_saveToDiscord error: $e');
@@ -235,7 +235,7 @@ class FileSystemService {
   }
   Future<bool> loadFromDiscord() async {
     try {
-      final url = await discordService.getLatestFileUrl(channelId: storageChannelId);
+      final url = await discordService.getLatestFileUrl(channelId: SettingsService.storageChannelId);
       if (url == null) {
         Logger.error('Dosya URL\'si alınamadı.');
         return false;

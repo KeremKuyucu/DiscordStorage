@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:DiscordStorage/services/utilities.dart';
+import 'package:DiscordStorage/screens/settings/service.dart';
 import 'package:http/http.dart' as http;
 import 'package:DiscordStorage/services/json_functions_service.dart';
 import 'package:DiscordStorage/services/path_service.dart';
@@ -54,8 +54,8 @@ class FileUploader {
             }
           } else {
             // Update global variables
-            channelId = channelId2;
-            messageId = messageId2;
+            SettingsService.channelId = channelId2;
+            SettingsService.messageId = messageId2;
           }
         } else {
           Logger.error('messageId not found in response. Response: $responseData');
@@ -82,7 +82,7 @@ class FileUploader {
       final uri = Uri.parse('https://discord.com/api/v10/channels/$channelId/messages');
 
       final request = http.MultipartRequest('POST', uri)
-        ..headers['Authorization'] = 'Bot $token' // global token variable
+        ..headers['Authorization'] = 'Bot ${SettingsService.token}' // global token variable
         ..fields['content'] = ''
         ..files.add(
           await http.MultipartFile.fromPath(

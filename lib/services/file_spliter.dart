@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:DiscordStorage/screens/main/screen.dart';
+import 'package:DiscordStorage/screens/settings/service.dart';
 import 'package:DiscordStorage/services/discord_service.dart';
 import 'package:DiscordStorage/services/file_hash_service.dart';
 import 'package:DiscordStorage/services/file_system_service.dart';
@@ -11,7 +12,6 @@ import 'package:DiscordStorage/services/upload_service.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
-import 'package:DiscordStorage/services/utilities.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:DiscordStorage/services/localization_service.dart';
@@ -56,7 +56,7 @@ class Filespliter {
         List<String> lines = await controlFile.readAsLines();
         if (lines.length >= 3) {
           hash = lines[2];
-          createdWebhook = lines.length >= 4 ? lines[3] : '';
+          SettingsService.createdWebhook = lines.length >= 4 ? lines[3] : '';
           if (hash == await fileHash.getFileHash(filePath)) {
             Logger.log('File hash has matched, upload in progress.');
             for (int i = 4; i < lines.length; i++) {
@@ -73,7 +73,7 @@ class Filespliter {
         await Future.delayed(const Duration(seconds: 3));
         String hashVal = await fileHash.getFileHash(filePath);
         await File(linksTxt).writeAsString(
-          '$totalParts\n$fileName\n$hashVal\n$createdWebhook\n',
+          '$totalParts\n$fileName\n$hashVal\n$SettingsService.createdWebhook\n',
         );
         Logger.log('Link file created: $linksTxt');
       }
@@ -92,7 +92,7 @@ class Filespliter {
         Logger.log('Part ${i + 1} has been created: $partFilename');
 
         String message = 'File Part: ${i + 1}';
-        await fileUploader.fileUpload(createdWebhook, partFilename, i + 1, message, 1, linksTxt);
+        await fileUploader.fileUpload(SettingsService.createdWebhook, partFilename, i + 1, message, 1, linksTxt);
 
         // --- BİLDİRİM ÇAĞRISININ SON HALİ ---
 
@@ -134,22 +134,22 @@ class Filespliter {
     }
 
     try {
-      await fileUploader.fileUpload(createdWebhook, linksTxt, 0, '', 0, linksTxt);
+      await fileUploader.fileUpload(SettingsService.createdWebhook, linksTxt, 0, '', 0, linksTxt);
 
       Map<String, dynamic> message2 = {
-        'channelId': channelId,
+        'channelId': SettingsService.channelId,
         'fileName': fileName,
-        'messageId': messageId
+        'messageId': SettingsService.messageId
       };
       String messageString = jsonEncode(message2);
 
       await http.post(
-        Uri.parse(createdWebhook),
+        Uri.parse(SettingsService.createdWebhook),
         body: {'content': messageString},
       );
 
       fileSystemService.load().then((_) {
-        fileSystemService.createFile([], fileName, channelId);
+        fileSystemService.createFile([], fileName, SettingsService.channelId);
         fileSystemService.save();
         Logger.log('Saved to the file system: $fileName');
       });

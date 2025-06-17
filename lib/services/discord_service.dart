@@ -2,15 +2,15 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'package:DiscordStorage/screens/settings/service.dart';
 import 'package:http/http.dart' as http;
-import 'package:DiscordStorage/services/utilities.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
 
 class DiscordService {
   DiscordService();
 
   Map<String, String> get _headers => {
-    'Authorization': 'Bot $token',
+    'Authorization': 'Bot ${SettingsService.token}',
     'Content-Type': 'application/json',
   };
 
@@ -43,14 +43,14 @@ class DiscordService {
     try {
       // --- 1. ADIM: Kanalın mevcut olup olmadığını kontrol et ---
       Logger.log('Searching for "$channelToFind" channel...');
-      final listUrl = Uri.parse('https://discord.com/api/v10/guilds/$guildId/channels');
+      final listUrl = Uri.parse('https://discord.com/api/v10/guilds/${SettingsService.guildId}/channels');
       final listResponse = await http.get(listUrl, headers: _headers);
 
       if (listResponse.statusCode == 200) {
         final List<dynamic> allChannels = jsonDecode(listResponse.body);
         final existingChannel = allChannels.firstWhere(
               (channel) =>
-          channel['parent_id'] == categoryId &&
+          channel['parent_id'] == SettingsService.categoryId &&
               channel['name'] == channelToFind,
           orElse: () => null,
         );
@@ -112,7 +112,7 @@ class DiscordService {
     }
   }
   Future<List<Map<String, String>>> getChannelsInCategory() async {
-    final url = Uri.parse('https://discord.com/api/v10/guilds/$guildId/channels');
+    final url = Uri.parse('https://discord.com/api/v10/guilds/${SettingsService.guildId}/channels');
 
     try {
       final response = await http.get(url, headers: _headers);
@@ -121,7 +121,7 @@ class DiscordService {
         final List<dynamic> channels = jsonDecode(response.body);
 
         final filteredChannels = channels.where((channel) =>
-        channel['parent_id'] == categoryId &&
+        channel['parent_id'] == SettingsService.categoryId &&
             channel['type'] != 4 &&
             channel['name'] != 'discord-storage-main-shard-persistent-data-9b1e'
         );
@@ -290,7 +290,7 @@ class DiscordService {
         final data = jsonDecode(response.body);
         String webhookUrl = 'https://discord.com/api/webhooks/${data['id']}/${data['token']}';
         Logger.log('Webhook created: $webhookUrl');
-        createdWebhook = webhookUrl;
+        SettingsService.createdWebhook = webhookUrl;
         return webhookUrl;
       } else {
         Logger.error('Webhook could not be created: ${response.body}');
@@ -303,13 +303,13 @@ class DiscordService {
   }
 
   Future<String?> createChannel(String channelName) async {
-    final url = Uri.parse('https://discord.com/api/v10/guilds/$guildId/channels');
+    final url = Uri.parse('https://discord.com/api/v10/guilds/${SettingsService.guildId}/channels');
     Map<String, dynamic> bodyMap = {
       'name': channelName,
       'type': 0,
     };
-    if (categoryId.isNotEmpty) {
-      bodyMap['parent_id'] = categoryId;
+    if (SettingsService.categoryId.isNotEmpty) {
+      bodyMap['parent_id'] = SettingsService.categoryId;
     }
     final body = jsonEncode(bodyMap);
 

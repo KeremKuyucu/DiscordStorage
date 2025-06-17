@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:theme_mode_builder/theme_mode_builder.dart';
-import 'package:DiscordStorage/services/utilities.dart';
 import 'package:DiscordStorage/services/bottom_bar_service.dart';
 import 'package:DiscordStorage/screens/settings/screen.dart';
 import 'package:DiscordStorage/screens/settings/service.dart';
@@ -34,7 +33,6 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
   late final FileMerger fileMerger = FileMerger();
   late final PathHelper pathHelper = PathHelper();
   late final FileShare fileShare = FileShare();
-  late final SettingsService settingsService = SettingsService();
   @override
   void initState() {
     super.initState();
@@ -42,7 +40,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
   }
 
   Future<void> _initializeGame() async {
-    await settingsService.loadSettings();
+    await SettingsService.load();
     fileSystemService.load().then((_) {
       if (mounted) {
         setState(() {});
@@ -50,14 +48,14 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
     });
     UpdateChecker( context: context,  repoOwner: 'KeremKuyucu',  repoName: 'DiscordStorage', ).checkForUpdate();
     setState(()  {
-      Language.load(languageCode);
-      if (isDarkMode) {
+      Language.load(SettingsService.languageCode);
+      if (SettingsService.isDarkMode) {
         ThemeModeBuilderConfig.setDark();
       } else {
         ThemeModeBuilderConfig.setLight();
       }
     });
-    if (token.isEmpty){
+    if (SettingsService.token.isEmpty){
       selectedIndex = 1;
       Navigator.pushReplacement(
         context,
@@ -421,7 +419,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
               onPressed: () => _showDownloadLinkDialog(context),
             ),
           ),
-          const SizedBox(width: 24.0),
+          //const SizedBox(width: 24.0),
         ],
       ),
       body: ListView.separated(

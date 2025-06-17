@@ -2,12 +2,28 @@ import 'package:DiscordStorage/services/localization_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:DiscordStorage/services/discord_service.dart';
-import 'package:DiscordStorage/services/utilities.dart';
 
 class SettingsService {
-  final DiscordService discordService = DiscordService();
+  // Runtime değişkenler
+  static String channelId = '';
+  static String messageId = '';
+  static String createdWebhook = '';
 
-  Future<void> loadSettings() async {
+  // Ayarlarla ilgili değişkenler
+  static String languageCode = 'en';
+  static String guildId = '';
+  static String categoryId = '';
+  static String token = '';
+  static String storageChannelId = '';
+  static bool isDarkMode = false;
+
+  // Desteklenen diller
+  static const List<String> languageCodes = ['en', 'tr'];
+
+  static final DiscordService _discordService = DiscordService();
+
+  /// Başlangıçta çağrılır, tüm ayarları SharedPreferences'ten yükler
+  static Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
 
     token = prefs.getString('bot_token') ?? '';
@@ -15,55 +31,59 @@ class SettingsService {
     categoryId = prefs.getString('category_id') ?? '';
     isDarkMode = prefs.getBool('is_dark_mode') ?? false;
     languageCode = prefs.getString('language_code') ?? 'en';
-    String? temp =prefs.getString('storage_channel');
-    if(temp==null || temp.isEmpty) {
-      temp = await discordService.getOrCreateMainStorageChannel();
-      await prefs.setString('storage_channel',temp );
+
+    String? temp = prefs.getString('storage_channel');
+    if (temp == null || temp.isEmpty) {
+      temp = await _discordService.getOrCreateMainStorageChannel();
+      await prefs.setString('storage_channel', temp);
     }
     storageChannelId = temp;
   }
 
-  // Ayarları kaydet
-  Future<bool> saveSettings({
-    required String token2,
-    required String guildId2,
-    required String categoryId2,
+  /// Ayarları kaydeder (token, guildId, categoryId)
+  static Future<bool> saveSettings({
+    required String newToken,
+    required String newGuildId,
+    required String newCategoryId,
     required BuildContext context,
   }) async {
     final prefs = await SharedPreferences.getInstance();
+    final isValid = await _discordService.checkAndSaveToken(newToken);
 
-    final isValidToken = await discordService.checkAndSaveToken(token2);
-
-    token = token2;
-    guildId = guildId2;
-    categoryId = categoryId2;
-
-    await prefs.setString('bot_token', token2);
-    await prefs.setString('guild_id', guildId2);
-    await prefs.setString('category_id', categoryId2);
-
-    if (!isValidToken) {
+    if (!isValid) {
       ScaffoldMessenger.of(context).showSnackBar(
-         SnackBar(content: Text(Language.get('tokenInvalid'))),
+        SnackBar(content: Text(Language.get('tokenInvalid'))),
       );
       return false;
     }
 
+    token = newToken;
+    guildId = newGuildId;
+    categoryId = newCategoryId;
+
+    await prefs.setString('bot_token', token);
+    await prefs.setString('guild_id', guildId);
+    await prefs.setString('category_id', categoryId);
+
     ScaffoldMessenger.of(context).showSnackBar(
-       SnackBar(content: Text(Language.get('tokenValid'))),
+      SnackBar(content: Text(Language.get('tokenValid'))),
     );
 
-    loadSettings();
+    load();
     return true;
   }
 
-  Future<void> saveThemaMode(bool val) async {
+  /// Tema ayarını kaydeder
+  static Future<void> saveTheme(bool value) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('is_dark_mode', val);
-  }
-  Future<void> saveLanguageCode(String val) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('language_code', val);
+    isDarkMode = value;
+    await prefs.setBool('is_dark_mode', value);
   }
 
+  /// Dil kodunu kaydeder
+  static Future<void> saveLanguage(String code) async {
+    final prefs = await SharedPreferences.getInstance();
+    languageCode = code;
+    await prefs.setString('language_code', code);
+  }
 }

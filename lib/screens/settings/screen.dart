@@ -1,7 +1,6 @@
 import 'package:DiscordStorage/screens/logs/screen.dart';
 import 'package:flutter/material.dart';
 import 'package:theme_mode_builder/theme_mode_builder.dart';
-import 'package:DiscordStorage/services/utilities.dart';
 import 'package:DiscordStorage/screens/settings/service.dart';
 import 'package:DiscordStorage/services/bottom_bar_service.dart';
 import 'package:DiscordStorage/services/discord_service.dart';
@@ -22,7 +21,6 @@ class _SettingsPageState extends State<SettingsPage> {
   final _categoryIdController = TextEditingController();
   final DiscordService discordService = DiscordService();
   final FileSystemService fileSystemService = FileSystemService();
-  final SettingsService settingsService = SettingsService();
   bool _obscureToken = true;
   bool _loading = true;
 
@@ -30,9 +28,9 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     setState(() {
-      _botTokenController.text = token;
-      _guildIdController.text = guildId;
-      _categoryIdController.text = categoryId;
+      _botTokenController.text = SettingsService.token;
+      _guildIdController.text = SettingsService.guildId;
+      _categoryIdController.text = SettingsService.categoryId;
       _loading = false;
     });
   }
@@ -131,10 +129,10 @@ class _SettingsPageState extends State<SettingsPage> {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () async {
-                          await settingsService.saveSettings(
-                            token2: _botTokenController.text,
-                            guildId2: _guildIdController.text,
-                            categoryId2: _categoryIdController.text,
+                          await SettingsService.saveSettings(
+                            newToken: _botTokenController.text,
+                            newGuildId: _guildIdController.text,
+                            newCategoryId: _categoryIdController.text,
                             context: context,
                           );
                         },
@@ -169,16 +167,16 @@ class _SettingsPageState extends State<SettingsPage> {
                       children: [
                         Text(Language.get('themeLabel'), style: TextStyle(fontSize: 16)),
                         Switch(
-                          value: isDarkMode,
+                          value: SettingsService.isDarkMode,
                           onChanged: (val) {
                             setState(() {
-                              isDarkMode = val;
+                              SettingsService.isDarkMode = val;
                               if (val) {
                                 ThemeModeBuilderConfig.setDark();
                               } else {
                                 ThemeModeBuilderConfig.setLight();
                               }
-                              settingsService.saveThemaMode(val);
+                              SettingsService.saveTheme(val);
                             });
                           },
                         ),
@@ -193,8 +191,8 @@ class _SettingsPageState extends State<SettingsPage> {
                           children: [
                             Text(Language.get('language'), style: TextStyle(fontSize: 16)),
                             DropdownButton<String>(
-                              value: languageCode,
-                              items: languageCodes.map((code) {
+                              value: SettingsService.languageCode,
+                              items: SettingsService.languageCodes.map((code) {
                                 return DropdownMenuItem<String>(
                                   value: code,
                                   child: Text(Language.get(code)),
@@ -205,9 +203,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
                                 await Language.load(newCode);
                                 setState(() {
-                                  languageCode = newCode;
+                                  SettingsService.languageCode = newCode;
                                 });
-                                settingsService.saveLanguageCode(newCode);
+                                SettingsService.saveLanguage(newCode);
                               },
                             ),
                           ],
