@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:DiscordStorage/services/analytics_service.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:theme_mode_builder/theme_mode_builder.dart';
@@ -62,6 +63,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
         MaterialPageRoute(builder: (context) => SettingsPage()),
       );
     }
+    AnalyticsService.sendEvent( appId: 'discordstorage',  userId: SettingsService.storageChannelId,eventEndpoint: "/app/start");
   }
 
   // ----------------- Buton Fonksiyonları -----------------

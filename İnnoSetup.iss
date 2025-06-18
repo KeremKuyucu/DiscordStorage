@@ -8,7 +8,7 @@
 ; // --- Temel Uygulama Bilgileri ---
 ; // Bu değerleri her yeni sürümde veya projede kolayca güncelleyebilirsiniz.
 #define AppName "DiscordStorage"
-#define AppVersion "v0.1.7-alpha"
+#define AppVersion "v0.1.8-alpha"
 #define AppPublisher "Kerem Kuyucu" ; // Veya şirket adınız
 #define AppURL "https://github.com/KeremKuyucu/DiscordStorage"
 #define AppExeName "discordstorage.exe"
