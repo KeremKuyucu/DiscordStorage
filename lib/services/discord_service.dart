@@ -94,7 +94,7 @@ class DiscordService {
       Logger.error('getOrCreateMainStorageChannel error: $e');
       return "";
     }
-  }
+  }  
   Future<void> _setChannelTopic(String channelId, String topic) async {
     final url = Uri.parse('https://discord.com/api/v10/channels/$channelId');
     final body = jsonEncode({'topic': topic});

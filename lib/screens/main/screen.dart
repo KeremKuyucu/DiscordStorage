@@ -63,7 +63,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
         MaterialPageRoute(builder: (context) => SettingsPage()),
       );
     }
-    AnalyticsService.sendEventOnce( appId: 'discordstorage',  userId: SettingsService.storageChannelId,eventEndpoint: "/app/start");
+    AnalyticsService.sendEventOnce( appId: 'discordstorage',  userId: SettingsService.storageChannelId, eventEndpoint: "/app/start");
   }
 
   // ----------------- Buton Fonksiyonları -----------------
