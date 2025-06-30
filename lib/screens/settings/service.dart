@@ -2,52 +2,51 @@ import 'package:DiscordStorage/services/localization_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:DiscordStorage/services/discord_service.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SettingsService {
-  // Runtime değişkenler
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+
   static String channelId = '';
   static String messageId = '';
   static String createdWebhook = '';
 
-  // Ayarlarla ilgili değişkenler
-  static String languageCode = 'en';
+  static String token = '';
   static String guildId = '';
   static String categoryId = '';
-  static String token = '';
   static String storageChannelId = '';
+
+  static String languageCode = 'en';
   static bool isDarkMode = false;
 
-  // Desteklenen diller
   static const List<String> languageCodes = ['en', 'tr'];
 
   static final DiscordService _discordService = DiscordService();
 
-  /// Başlangıçta çağrılır, tüm ayarları SharedPreferences'ten yükler
   static Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
 
-    token = prefs.getString('bot_token') ?? '';
-    guildId = prefs.getString('guild_id') ?? '';
-    categoryId = prefs.getString('category_id') ?? '';
+    token = await _secureStorage.read(key: 'bot_token') ?? '';
+    guildId = await _secureStorage.read(key: 'guild_id') ?? '';
+    categoryId = await _secureStorage.read(key: 'category_id') ?? '';
+    storageChannelId = await _secureStorage.read(key: 'storage_channel') ?? '';
     isDarkMode = prefs.getBool('is_dark_mode') ?? false;
     languageCode = prefs.getString('language_code') ?? 'en';
-
-    String? temp = prefs.getString('storage_channel');
-    if (temp == null || temp.isEmpty) {
-      temp = await _discordService.getOrCreateMainStorageChannel();
-      await prefs.setString('storage_channel', temp);
+    if (storageChannelId.isEmpty) {
+      String? tempChannel = await _discordService.getOrCreateMainStorageChannel();
+      if (tempChannel != null && tempChannel.isNotEmpty) {
+        await _secureStorage.write(key: 'storage_channel', value: tempChannel);
+        storageChannelId = tempChannel;
+      }
     }
-    storageChannelId = temp;
   }
 
-  /// Ayarları kaydeder (token, guildId, categoryId)
   static Future<bool> saveSettings({
     required String newToken,
     required String newGuildId,
     required String newCategoryId,
     required BuildContext context,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
     final isValid = await _discordService.checkAndSaveToken(newToken);
 
     if (!isValid) {
@@ -61,26 +60,24 @@ class SettingsService {
     guildId = newGuildId;
     categoryId = newCategoryId;
 
-    await prefs.setString('bot_token', token);
-    await prefs.setString('guild_id', guildId);
-    await prefs.setString('category_id', categoryId);
+    await _secureStorage.write(key: 'bot_token', value: token);
+    await _secureStorage.write(key: 'guild_id', value: guildId);
+    await _secureStorage.write(key: 'category_id', value: categoryId);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(Language.get('tokenValid'))),
     );
 
-    load();
+    await load();
     return true;
   }
 
-  /// Tema ayarını kaydeder
   static Future<void> saveTheme(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     isDarkMode = value;
     await prefs.setBool('is_dark_mode', value);
   }
 
-  /// Dil kodunu kaydeder
   static Future<void> saveLanguage(String code) async {
     final prefs = await SharedPreferences.getInstance();
     languageCode = code;
