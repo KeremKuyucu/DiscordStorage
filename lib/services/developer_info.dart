@@ -3,10 +3,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:DiscordStorage/services/localization_service.dart';
 
-/// Geliştirici ve uygulama bilgilerini gösteren bir dialog penceresi sunar.
-///
-/// Bu sınıf, herhangi bir yerden kolayca çağrılabilmesi için statik metotlar kullanır.
-/// Kullanım: `DeveloperInfo.show(context);`
 class DeveloperInfo {
   static Future<void> show(BuildContext context) async {
     final PackageInfo packageInfo = await PackageInfo.fromPlatform();

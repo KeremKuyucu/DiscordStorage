@@ -35,7 +35,7 @@ class Filespliter {
     // --- YENİ EKLENENLER: HIZ VE SÜRE HESABI İÇİN ---
     double? speedMbps;
     Duration? estimatedTime;
-    final int notificationId = DateTime.now().millisecondsSinceEpoch; // Her yükleme için benzersiz ID
+    final int notificationId = 100;
 
     try {
       int availablePartNumber = 0;

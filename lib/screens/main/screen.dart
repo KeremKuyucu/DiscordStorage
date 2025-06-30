@@ -14,7 +14,6 @@ import 'package:DiscordStorage/services/file_merger.dart';
 import 'package:DiscordStorage/services/discord_service.dart';
 import 'package:DiscordStorage/services/path_service.dart';
 import 'package:DiscordStorage/services/file_share_service.dart';
-import 'package:DiscordStorage/services/shared_file_merger.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
 import 'package:DiscordStorage/services/localization_service.dart';
 import 'package:DiscordStorage/services/developer_info.dart';
@@ -191,7 +190,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
     final url = await discordService.getFileUrl(channelIdFromMessage, messageId);
     await fileDownloader.fileDownload(url,filePath);
 
-    await fileMerger.mergeFiles(filePath);
+    await fileMerger.mergeFiles(filePath, false);
 
     final file = File(fileNameFromMessage);
     if (await file.exists()) {
@@ -229,8 +228,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
     if (filePicker == null || filePicker.files.isEmpty) return;
 
     final path = filePicker.files.first.path!;
-    final merger = SharedFileMerger();
-    await merger.mergeFiles(path);
+    await fileMerger.mergeFiles(path, true);
   }
 
   Future<void> _shareFile(String fileName, String channelId) async {
@@ -391,7 +389,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
           color: Colors.blue,
         ),
         title: Text(
-          currentPath.isEmpty ? 'DiscordStorage' : 'DiscordStorage / ${currentPath.join('/')}',
+          currentPath.isEmpty ? 'DiscordStorage' : 'DiscordStorage/${currentPath.join('/')}',
           style: const TextStyle(color: Colors.purple),
         ),
         centerTitle: true,
@@ -556,7 +554,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
                   _downloadFile(name, channelId);
                   break;
                 case 'share':
-                  _shareFile(name, channelId);
+                  //_shareFile(name, channelId);
                   break;
                 case 'rename':
                   _showRenameDialog(name, isFolder, channelId);

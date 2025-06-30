@@ -1,7 +1,7 @@
 name: DiscordStorage
 description: "DiscordStorage new version"
 publish_to: 'none'
-version: 0.1.8-alpha
+version: 0.1.9-alpha
 
 environment:
   sdk: ^3.7.2
@@ -12,7 +12,7 @@ dependencies:
 
   shared_preferences: ^2.5.3
   cupertino_icons: ^1.0.8
-  flutter_local_notifications: ^19.2.1
+  flutter_local_notifications: ^19.3.0
   http: ^1.4.0
   device_info_plus: ^11.5.0
   salomon_bottom_bar: ^3.3.2

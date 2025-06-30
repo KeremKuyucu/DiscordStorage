@@ -18,7 +18,7 @@ class FileShare {
     Logger.log('Creating link file...');
 
     // --- YENİ EKLENENLER: ID ve Kronometre ---
-    final int notificationId = DateTime.now().millisecondsSinceEpoch;
+    final int notificationId = 100;
     final Stopwatch stopwatch = Stopwatch();
 
     final file = File(filePath);

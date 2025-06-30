@@ -6,7 +6,7 @@ import 'package:DiscordStorage/services/notification_service.dart';
 import 'package:DiscordStorage/services/discord_service.dart';
 import 'package:DiscordStorage/services/path_service.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
-import 'package:DiscordStorage/services/localization_service.dart'; // Eklendi
+import 'package:DiscordStorage/services/localization_service.dart';
 
 // Link sınıfını URL'i de içerecek şekilde güncelleyelim.
 class RichLink {
@@ -27,21 +27,30 @@ class FileMerger {
 
   FileMerger();
 
-  Future<void> mergeFiles(String filePath) async {
+  Future<void> mergeFiles(String filePath, bool sharedFile) async {
     Logger.log('mergeFiles process started');
 
     // --- YENİ EKLENENLER: ID ve Kronometre ---
-    final int notificationId = DateTime.now().millisecondsSinceEpoch;
+    final int notificationId = 100;
     final Stopwatch stopwatch = Stopwatch();
 
     // ... dosya okuma ve temel kontroller ...
     final file = File(filePath);
-    if (!await file.exists()) { /*...*/ return; }
+    if (!await file.exists()) {
+      /*...*/
+      return;
+    }
     final content = await file.readAsString();
     final lines = LineSplitter.split(content).toList();
-    if (lines.isEmpty) { /*...*/ return; }
+    if (lines.isEmpty) {
+      /*...*/
+      return;
+    }
     final totalParts = int.tryParse(lines[0]) ?? 0;
-    if (totalParts <= 0 || lines.length < 4) { /*...*/ return; }
+    if (totalParts <= 0 || lines.length < 4) {
+      /*...*/
+      return;
+    }
 
     final downloadsDir = await pathHelper.getDownloadsDirectoryPath();
     final targetFileName = lines[1];
@@ -50,26 +59,42 @@ class FileMerger {
 
     Logger.log('--- Phase 1: Fetching all part URLs ---');
     final List<RichLink> richLinks = [];
-    for (int i = 4; i < lines.length; i++) {
-      try {
-        final jsonObj = jsonDecode(lines[i]);
-        final url = await discordService.getFileUrl(jsonObj['channelId'], jsonObj['messageId']);
-        richLinks.add(RichLink(jsonObj['partNo'], url));
-        // URL'leri toplarken de kullanıcıya bir "hazırlanıyor" bildirimi gösterebiliriz.
-        await notificationService.showProgressNotification(
-          id: notificationId,
-          current: (i - 3), // (i-4+1)
-          total: (lines.length - 4),
-          fileName: targetFileName,
-          operation: Language.get('preparing'), // "Hazırlanıyor"
-        );
-      } catch (e) {
-        Logger.error('URL fetching error for line: ${lines[i]} - $e');
-        continue;
+    if (!sharedFile) {
+      for (int i = 4; i < lines.length; i++) {
+        try {
+          final jsonObj = jsonDecode(lines[i]);
+          final url = await discordService.getFileUrl(
+              jsonObj['channelId'], jsonObj['messageId']);
+          richLinks.add(RichLink(jsonObj['partNo'], url));
+          // URL'leri toplarken de kullanıcıya bir "hazırlanıyor" bildirimi gösterebiliriz.
+          await notificationService.showProgressNotification(
+            id: notificationId,
+            current: (i - 3), // (i-4+1)
+            total: (lines.length - 4),
+            fileName: targetFileName,
+            operation: Language.get('preparing'), // "Hazırlanıyor"
+          );
+        } catch (e) {
+          Logger.error('URL fetching error for line: ${lines[i]} - $e');
+          continue;
+        }
+      }
+    } else {
+      for (int i = 3; i < lines.length; i++) {
+        // ... link parse etme işlemi ...
+        try {
+          final jsonObj = jsonDecode(lines[i]);
+          richLinks.add(RichLink(jsonObj['partNo'], jsonObj['partUrl']));
+        } catch (e) {
+          continue;
+        }
       }
     }
 
-    if (richLinks.length != totalParts) { /*...*/ return; }
+    if (richLinks.length != totalParts) {
+      /*...*/
+      return;
+    }
 
     richLinks.sort((a, b) => a.partNumber.compareTo(b.partNumber));
     Logger.log('Links sorted.');
@@ -86,8 +111,13 @@ class FileMerger {
       final newFilePath = '$downloadsDir${Platform.pathSeparator}$newFileName';
       partFiles.add(newFilePath);
 
-      final downloadedBytes = await fileDownloader.fileDownload(link.url, newFilePath);
-      if (downloadedBytes < 0) { /*...*/ stopwatch.stop(); return; }
+      final downloadedBytes =
+      await fileDownloader.fileDownload(link.url, newFilePath);
+      if (downloadedBytes < 0) {
+        /*...*/
+        stopwatch.stop();
+        return;
+      }
 
       totalDownloadedBytes += downloadedBytes;
       downloadedParts++;
@@ -96,19 +126,21 @@ class FileMerger {
       double? speedMbps;
       Duration? estimatedTime;
       if (stopwatch.elapsedMilliseconds > 500) {
-        final bytesPerSecond = (totalDownloadedBytes / stopwatch.elapsedMilliseconds) * 1000;
+        final bytesPerSecond =
+            (totalDownloadedBytes / stopwatch.elapsedMilliseconds) * 1000;
         speedMbps = bytesPerSecond / (1024 * 1024);
         final averagePartSize = totalDownloadedBytes / downloadedParts;
         final remainingBytes = (totalParts - downloadedParts) * averagePartSize;
         if (bytesPerSecond > 0) {
-          estimatedTime = Duration(seconds: (remainingBytes / bytesPerSecond).round());
+          estimatedTime =
+              Duration(seconds: (remainingBytes / bytesPerSecond).round());
         }
       }
 
       await notificationService.showProgressNotification(
         id: notificationId,
-        current: downloadedParts*partSize,
-        total: totalParts*partSize,
+        current: downloadedParts * partSize,
+        total: totalParts * partSize,
         fileName: targetFileName,
         operation: Language.get('downloading'),
         speed: speedMbps,
@@ -132,8 +164,8 @@ class FileMerger {
         mergedParts++;
         await notificationService.showProgressNotification(
           id: notificationId,
-          current: mergedParts*partSize,
-          total: totalParts*partSize,
+          current: mergedParts * partSize,
+          total: totalParts * partSize,
           fileName: targetFileName,
           operation: Language.get('merging'),
         );
@@ -143,14 +175,15 @@ class FileMerger {
     stopwatch.stop();
     await sink.close();
 
-    await notificationService.cancelNotification(notificationId); // İlerleme bildirimini temizle
+    await notificationService
+        .cancelNotification(notificationId); // İlerleme bildirimini temizle
     final calculatedHash = await fileHash.getFileHash(targetFilePath);
 
     if (calculatedHash != expectedHash) {
       Logger.error('File hash mismatch!');
       await notificationService.showNotification(
         Language.get('hashMismatchTitle'), // "Hash Uyuşmazlığı"
-        Language.get('hashMismatchBody'),  // "Dosya bozuk olabilir..."
+        Language.get('hashMismatchBody'), // "Dosya bozuk olabilir..."
         playSound: true,
       );
     } else {
