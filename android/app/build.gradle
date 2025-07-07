@@ -38,13 +38,13 @@ android {
 
     signingConfigs {
         debug {
-            storeFile file("C:\\Users\\Kerem\\Projects\\StudioProjects\\discordstorage\\ksk.jks")  // Gerçek dosya yolu
+            storeFile file("C:\\Users\\Kerem\\Projects\\Flutter\\discordstorage\\ksk.jks")  // Gerçek dosya yolu
             storePassword "kerem2008"  // Keystore şifresi
             keyAlias "ksk"  // Keystore'da belirlediğiniz alias
             keyPassword "kerem2008"  // Alias'a ait şifre
         }
         release {
-            storeFile file("C:\\Users\\Kerem\\Projects\\StudioProjects\\discordstorage\\ksk.jks")  // Gerçek dosya yolu
+            storeFile file("C:\\Users\\Kerem\\Projects\\Flutter\\discordstorage\\ksk.jks")  // Gerçek dosya yolu
             storePassword "kerem2008"  // Keystore şifresi
             keyAlias "ksk"  // Keystore'da belirlediğiniz alias
             keyPassword "kerem2008"  // Alias'a ait şifre
