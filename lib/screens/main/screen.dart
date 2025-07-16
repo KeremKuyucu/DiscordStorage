@@ -430,8 +430,6 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
           final name = displayItems[index];
 
           if (name == '...') {
-            // HATA BÜYÜK İHTİMALLE BU BLOKTAYDI.
-            // DragTarget'ın 'builder' parametresi burada doğru bir şekilde tanımlanmıştır.
             return DragTarget<Map<String, dynamic>>(
               onWillAccept: (_) => currentPath.isNotEmpty,
               onAccept: (data) {
@@ -443,7 +441,6 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
                 fileSystemService.save();
                 setState(() {});
               },
-              // ZORUNLU OLAN VE HATAYA NEDEN OLAN KISIM BU 'builder' PARAMETRESİDİR.
               builder: (context, candidateData, rejectedData) => ListTile(
                 leading: Icon(Icons.arrow_upward, color: Colors.purple),
                 title: Text('...'),
@@ -455,7 +452,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
             );
           }
 
-          final item = children[name]!; // children'den gelenin null olmayacağını varsayıyoruz.
+          final item = children[name]!;
           final isFolder = item['type'] == 'folder';
 
           return DragTarget<Map<String, dynamic>>(
