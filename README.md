@@ -136,7 +136,7 @@ This project is licensed under the open-source license specified in the [LICENSE
 
 <div align="center">
   <p>Developer: <strong>Kerem Kuyucu</strong></p>
-  <p>© 2023-2024 DiscordStorage</p>
+  <p>© 2025 DiscordStorage</p>
 </div>
 
 ---
