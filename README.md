@@ -21,6 +21,10 @@
 
 ## 🔍 About the Project
 
+<div align="center">
+  <img src="assets/app_screenshot.png" alt="App Screenshot" style="border-radius: 12px; max-width: 100%;">
+</div>
+
 **DiscordStorage** is a cross-platform application that allows you to store your files securely and conveniently using Discord servers. It is developed with **Flutter** and supports both **Android** and **Windows** platforms.
 
 This project is a modernized and improved Flutter version of the [DiscordStorageCpp](https://github.com/keremkuyucu/discordstorageCpp) project previously developed in C++.
