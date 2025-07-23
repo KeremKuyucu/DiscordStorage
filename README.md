@@ -1,146 +1,109 @@
 # DiscordStorage
 
-<div align="center">
-  <img src="assets/logo.png" alt="DiscordStorage Logo" width="200">
-  <p>📦 A file storage and sharing application via Discord</p>
-</div>
+> 📦 Use Discord as your own personal cloud storage  
+> ✨ Cross-platform app with Flutter — Android & Windows supported
 
-## 📁 Table of Contents
+## ✅ Completed Features
+<img align="right" width="auto" height="300" src="assets/logo.png">
+<br clear="left"/>
 
-* [About the Project](#-about-the-project)
-* [Features](#-features)
-* [Installation](#-installation)
-* [Usage](#-usage)
-* [Technical Details](#-technical-details)
-* [Warnings](#-warnings)
-* [Changelog](#-changelog)
-* [Contributing](#-contributing)
-* [License](#-license)
+- 📁 Folder structure support & auto-sync
+- 📦 File chunking (10MB max size per part)
+- 🔄 File reassembly & restoration
+- 🛡 SHA-256 based file integrity verification
+- 🧪 `debugLog` support for error tracing
+- 🖥️ Flutter-based clean UI (mobile & desktop)
+- 🔍 Auto update check system
 
 ---
 
-## 🔍 About the Project
+## 🧩 Planned Features (v1.0 Roadmap)
 
-<div align="center">
-  <img src="assets/app_screenshot.png" alt="App Screenshot" style="border-radius: 12px; max-width: 100%;">
-</div>
-
-**DiscordStorage** is a cross-platform application that allows you to store your files securely and conveniently using Discord servers. It is developed with **Flutter** and supports both **Android** and **Windows** platforms.
-
-This project is a modernized and improved Flutter version of the [DiscordStorageCpp](https://github.com/keremkuyucu/discordstorageCpp) project previously developed in C++.
-
----
-
-## 🚀 Features
-
-* 📁 Store and manage files on Discord servers
-* 🔐 Bot token is stored only on the local device
-* 📄 Automatically splits large files into 8MB parts and uploads them
-* 📅 Automatically merges parts and downloads them
-* 🧪 `debugLog` support for advanced error tracking
-* 🯞 SHA-256 hashing for file integrity verification
-* 🖥️ Clean and modern UI compatible with mobile and desktop
-* 🔄 Automatic update check system
+- [ ] 🔧 Fix 403 errors during file downloads by increasing timeout and improving retry logic
+- [ ] 🔄 Full auto-sync for all files
+- [ ] 🔗 File sharing via unique private links
+- [ ] 🛡 Enhanced bot token security (e.g. OS-level encryption)
+- [ ] 🔐 File encryption (pre-upload)
+- [ ] ☁️ External backup support (Google Drive, IPFS etc.)
+- [ ] 📜 Advanced logging & versioning
+- [ ] 🕶 Private / hidden folders (locked or passworded)
+- [ ] 📂 In-app file previews (PDF, image, text)
+- [ ] 📲 Mobile background sync support
+- [ ] 🖥️ Pc background sync CLI support
+- [ ] 🌐 Web version
 
 ---
 
-## 💻 Installation
+## 🖥 Installation
 
 ### Windows
 
-1. Download the latest version from the [Releases](https://github.com/KeremKuyucu/DiscordStorage/releases) page.
-2. Run the installer and follow the instructions.
-3. Once the installation is complete, launch the application.
+1. Download from [Releases](https://github.com/KeremKuyucu/DiscordStorage/releases)
+2. Run installer and follow steps
+3. Launch the app and configure
 
 ### Android
 
-1. Download the latest `.apk` file from the [Releases](https://github.com/KeremKuyucu/DiscordStorage/releases) page.
-2. Install the APK on your device and grant the necessary permissions.
-3. Launch the app.
+1. Get the latest `.apk` from [Releases](https://github.com/KeremKuyucu/DiscordStorage/releases)
+2. Install & allow required permissions
+3. Open the app and configure
 
-### For Developers
+### Developer Setup
 
 ```bash
-# Clone the repository
 git clone https://github.com/KeremKuyucu/DiscordStorageNew.git
-
-# Install dependencies
+cd DiscordStorageNew
 flutter pub get
-
-# Run the application
 flutter run
-```
+````
 
 ---
 
-## 📱 Usage
+## ⚙️ Setup Instructions
 
-### Initial Setup
+1. Go to [Discord Developer Portal](https://discord.com/developers/applications) and create a bot
+2. Copy the **Bot Token**
+3. In-app: Go to **Settings** > Enter:
 
-1. Create a bot and get the token from the [Discord Developer Portal](https://discord.com/developers/applications).
-2. Go to the **Settings** tab in the app.
-3. Enter the bot token and click "Check Token".
-4. Enter the Server ID and Category ID.
-5. Click "Save" to complete the setup.
-
-### Uploading Files
-
-1. On the main screen, click **"Upload File"**.
-2. Select the file you want to upload.
-3. The upload will start automatically and the file will appear on the main screen when completed.
-
-### Downloading Files
-
-1. Select the file you want to download on the main screen.
-2. Click the **"Download"** button.
-3. The file will be automatically downloaded and saved to your device’s **Downloads** folder.
+   * Bot Token
+   * Server ID
+   * Category ID
+4. Save and you're ready
 
 ---
 
-## 🔧 Technical Details
+## ☁️ How to Use
 
-### Splitting and Merging
+### Upload a File
 
-* Due to Discord’s 8MB upload limit, files are split into parts accordingly.
-* A JSON record is kept for each part.
-* During download, all parts are merged in order.
+* Click **Upload File**
+* Choose your file
+* App will auto-split & upload
 
-### File Integrity
+### Download a File
 
-* File integrity is verified during upload and download using the **SHA-256** hash algorithm.
+* Tap a listed file
+* Click **Download**
+* File is auto-restored and saved to Downloads
+
+---
+
+## 🔐 File Integrity
+
+> Uses **SHA-256** checksums to verify both uploaded and downloaded files.
 
 ---
 
 ## ⚠️ Warnings
 
-* **Do not manually send messages to the relevant Discord channel** after a file is uploaded. This may break the system.
-* Make sure the bot has all necessary permissions.
-* Optionally, you can give full permissions in a private category and restrict the bot in the rest of the server.
-* Ensure there is enough free space on your device for large files.
+> ℹ️ Read these carefully to avoid issues
+
+* ❌ Do **not** manually message in upload channel — it may corrupt the file structure
+* ✅ Ensure bot has sufficient permissions in the target category
+* 🔒 Prefer giving full permissions in a private category
 
 ---
 
-## 🤝 Contributing
+## 👤 Author
 
-To contribute:
-
-1. Fork the repository
-2. Create a new branch: `git checkout -b new-feature`
-3. Commit your changes: `git commit -m "Add new feature"`
-4. Push to the branch: `git push origin new-feature`
-5. Submit a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the open-source license specified in the [LICENSE](LICENSE) file.
-
----
-
-<div align="center">
-  <p>Developer: <strong>Kerem Kuyucu</strong></p>
-  <p>© 2025 DiscordStorage</p>
-</div>
-
----
+> Developed by [**Kerem Kuyucu**](https://github.com/KeremKuyucu)
