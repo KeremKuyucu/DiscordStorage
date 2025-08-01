@@ -345,9 +345,9 @@ class Logger {
       final stackTrace = StackTrace.current;
       final lines = stackTrace.toString().split('\n');
 
-      // Skip Logger internal calls to find actual caller
-      if (lines.length > 2) {
-        final callerLine = lines[2].trim();
+      // Skip deeper into the stack to get the real external caller (2-levels up)
+      if (lines.length > 4) {
+        final callerLine = lines[4].trim(); // ← buradaki index ile derinliği ayarlarsın
         final regExp = RegExp(r'\((.*?):(\d+):(\d+)\)');
         final match = regExp.firstMatch(callerLine);
         if (match != null) {
@@ -365,6 +365,7 @@ class Logger {
       return 'error getting caller info: $e';
     }
   }
+
 
   // Utility methods
   static Future<int> getLogFileSize() async {
