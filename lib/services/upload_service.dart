@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'package:DiscordStorage/screens/settings/service.dart';
 import 'package:http/http.dart' as http;
+import 'dart:typed_data';
+import 'dart:convert';
 import 'package:DiscordStorage/services/json_functions_service.dart';
 import 'package:DiscordStorage/services/path_service.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
+import 'package:http_parser/http_parser.dart';
 
 bool debugPrint = false;
 class FileUploader {
@@ -108,6 +111,43 @@ class FileUploader {
       await tempFile.delete();
     } catch (e) {
       Logger.error('Error during upload: $e');
+    }
+  }
+  Future<String> uploadFileFromBytes({
+    required Uint8List bytes,
+    required String fileName,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('https://discordstorage-share.vercel.app/api/upload'),
+    );
+
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: fileName,
+        contentType: MediaType('application', 'octet-stream'),
+      ),
+    );
+
+    try {
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+
+      if (response.statusCode != 200) {
+        throw Exception('Yükleme başarısız: ${response.reasonPhrase}');
+      }
+
+      final json = jsonDecode(body);
+
+      if (json == null || json['fileId'] == null) {
+        throw Exception('Sunucudan beklenen veri gelmedi');
+      }
+
+      return json['fileId'] as String;
+    } catch (e) {
+      throw Exception('Dosya yüklenirken hata oluştu: $e');
     }
   }
 }

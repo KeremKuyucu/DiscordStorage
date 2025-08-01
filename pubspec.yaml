@@ -10,36 +10,45 @@ dependencies:
   flutter:
     sdk: flutter
 
-  shared_preferences: ^2.5.3
-  flutter_secure_storage: ^9.2.4
+  # Core UI and Icons
   cupertino_icons: ^1.0.8
-  flutter_local_notifications: ^19.3.0
-  http: ^1.4.0
-  device_info_plus: ^11.5.0
   salomon_bottom_bar: ^3.3.2
-  url_launcher: ^6.3.1
+  theme_mode_builder: ^2.0.0
+
+  # Networking & HTTP
+  http: ^1.4.0
+  http_parser: ^4.1.2
+  easy_url_launcher: ^0.0.7
+  url_launcher: ^6.3.2
+  share_plus: ^11.0.0
+
+  # File and Storage Management
+  path: ^1.9.1
+  path_provider: ^2.1.5
+  path_provider_windows: ^2.3.0
+  file_picker: ^10.2.0
+  permission_handler: ^12.0.1
+  flutter_secure_storage: ^9.2.4
+
+  # Notifications
+  flutter_local_notifications: ^19.4.0
 
   # Update Check
+  device_info_plus: ^11.5.0
   package_info_plus: ^8.3.0
-  easy_url_launcher: ^0.0.7
-  theme_mode_builder: ^2.0.0
+
+  # Text Processing
   markdown: ^7.3.0
   flutter_html: ^3.0.0
 
-  # File Select
-  permission_handler: ^12.0.0+1
-  file_picker: ^10.2.0
-  path: ^1.9.1
-  path_provider: ^2.1.5
-
-  # Hash Calcution
+  # Security & Hashing
   crypto: ^3.0.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_launcher_icons: ^0.14.3
-  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_lints: 5.0.0
 
 flutter_icons:
   android: {

@@ -4,6 +4,8 @@ import 'package:DiscordStorage/screens/main/screen.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
 import 'package:DiscordStorage/services/notification_service.dart';
 import 'package:DiscordStorage/services/permission_service.dart';
+import 'package:DiscordStorage/services/localization_service.dart';
+import 'package:DiscordStorage/screens/settings/service.dart';
 
 
 void main() async {
@@ -18,6 +20,9 @@ void main() async {
   // Check permissions
   PermissionService.init();
   Logger.log('Permissions checked.');
+
+  await SettingsService.load();
+  await Language.load(SettingsService.languageCode);
 
   runApp(DiscordStorage());
   Logger.log('runApp called, application started.');

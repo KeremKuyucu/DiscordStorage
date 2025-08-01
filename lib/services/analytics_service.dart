@@ -7,8 +7,6 @@ class AnalyticsService {
 
   static final Uri _endpoint = Uri.parse('https://analytics.keremkk.com.tr/api/analytics');
   static const Map<String, String> _headers = {'Content-Type': 'application/json; charset=UTF-8'};
-
-  // Bu flag RAM'de tutulur, uygulama kapanana kadar geçerlidirAdd commentMore actions
   static bool _hasSentEvent = false;
 
   static Future<bool> sendEventOnce({

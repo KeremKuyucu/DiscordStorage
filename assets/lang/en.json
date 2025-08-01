@@ -18,12 +18,13 @@
   "invalidFolder": "Invalid folder",
   "save": "Save",
   "cancel": "Cancel",
+  "ok": "OK",
   "newNameLabel": "New name",
   "deleteConfirmation": "Delete",
   "permanentlyDelete": "The file will be permanently deleted.",
   "deleteFileConfirmation": "Do you want to delete $name?",
   "shareFileDownloading": "File creation",
-  "shareFileDownloaded": "Share File has been created in Downloads folder. Usage period is a few days...",
+  "shareFileUploaded": "Share File has been created. Usage period is a few days...",
   "fileNotSelected": "No file selected",
   "downloadComplete": "Download complete",
   "downloadingFile": "is downloading...",
@@ -40,7 +41,7 @@
   "categoryId": "Category ID",
   "saveLabel": "Save",
   "loadFilesLabel": "Load files from Discord",
-  "themeLabel": "Theme",
+  "themeLabel": "Theme Light/Dark",
   "language": "Language",
 
   "uploading": "Uploading...",
@@ -90,5 +91,9 @@
   "messageNotFound": "Message not found",
   "sharedFileDownloaded": "Shared file downloaded",
   "movedUp": "moved up",
-  "movedDown": "moved down"
+  "movedDown": "moved down",
+
+  "enterFileId": "Enter File ID",
+  "messageId": "Message ID",
+  "fileCreationFailed": "File could not be created or data not received"
 }

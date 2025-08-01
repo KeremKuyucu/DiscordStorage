@@ -13,7 +13,7 @@ import 'package:DiscordStorage/services/file_spliter.dart';
 import 'package:DiscordStorage/services/file_merger.dart';
 import 'package:DiscordStorage/services/discord_service.dart';
 import 'package:DiscordStorage/services/path_service.dart';
-import 'package:DiscordStorage/services/file_share_service.dart';
+import 'package:DiscordStorage/services/url_options.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
 import 'package:DiscordStorage/services/localization_service.dart';
 import 'package:DiscordStorage/services/developer_info.dart';
@@ -30,9 +30,10 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
   late final FileSystemService fileSystemService = FileSystemService();
   late final DiscordService discordService = DiscordService();
   late final FileDownloader fileDownloader = FileDownloader();
-  late final FileMerger fileMerger = FileMerger();
   late final PathHelper pathHelper = PathHelper();
-  late final FileShare fileShare = FileShare();
+  late final FileMerger fileMerger = FileMerger();
+
+  final urlOptions = UrlOptions();
   @override
   void initState() {
     super.initState();
@@ -40,21 +41,17 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
   }
 
   Future<void> _initializeGame() async {
-    await SettingsService.load();
-    fileSystemService.load().then((_) {
-      if (mounted) {
-        setState(() {});
-      }
-    });
+    await fileSystemService.load();
+    if (!mounted) return;
+    setState(() {});
+
     UpdateChecker( context: context,  repoOwner: 'KeremKuyucu',  repoName: 'DiscordStorage', ).checkForUpdate();
-    setState(()  {
-      Language.load(SettingsService.languageCode);
-      if (SettingsService.isDarkMode) {
-        ThemeModeBuilderConfig.setDark();
-      } else {
-        ThemeModeBuilderConfig.setLight();
-      }
-    });
+
+    if (SettingsService.isDarkMode) {
+      ThemeModeBuilderConfig.setDark();
+    } else {
+      ThemeModeBuilderConfig.setLight();
+    }
     if (SettingsService.token.isEmpty){
       selectedIndex = 1;
       Navigator.pushReplacement(
@@ -173,6 +170,69 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
     setState(() {});
   }
 
+  Future<void> _shareFile(String fileName, String channelId) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$fileName ${Language.get('shareFileDownloading')}')),
+    );
+    final messages = await discordService.getMessages(channelId, 1);
+
+    final lastMessageContent = messages.first;
+    final Map<String, dynamic> data = jsonDecode(lastMessageContent);
+
+    final messageId = data['messageId'];
+    final fileNameFromMessage = data['fileName'] + 'temp.txt';
+    final filePath = await pathHelper.getDownloadsDirectoryPath()+ fileNameFromMessage;
+    final channelIdFromMessage = data['channelId'];
+
+    final url = await discordService.getFileUrl(channelIdFromMessage, messageId);
+    await fileDownloader.fileDownload(url,filePath);
+    await urlOptions.share(filePath);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$fileName ${Language.get('shareFileDownloaded')}')),
+    );
+    final linkFile = File(filePath);
+    if (await linkFile.exists()) {
+      await linkFile.delete();
+    }
+  }
+
+  void _showDownloadLinkDialog(BuildContext context) async {
+    final messageId = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        String input = '';
+        return AlertDialog(
+          title: Text(Language.get('enterFileId')),
+          content: TextField(
+            onChanged: (value) => input = value,
+            decoration: InputDecoration(hintText: Language.get('messageId')),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, null),
+              child: Text(Language.get('cancel')),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, input.trim()),
+              child: Text(Language.get('ok')),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (messageId == null || messageId.isEmpty) return;
+
+    final filePath = await urlOptions.fetchContentAndSaveFile(messageId);
+    if (filePath != null) {
+      await fileMerger.mergeFiles(filePath, true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(Language.get('fileCreationFailed'))),
+      );
+    }
+  }
+
   void _downloadFile(String fileName,String channelId) async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$fileName ${Language.get('downloadingFile')}')),
@@ -192,7 +252,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
 
     await fileMerger.mergeFiles(filePath, false);
 
-    final file = File(fileNameFromMessage);
+    final file = File(filePath);
     if (await file.exists()) {
       await file.delete();
       Logger.log('$fileNameFromMessage deleted');
@@ -216,44 +276,6 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(Language.get('fileNotSelected'))),
       );
-    }
-  }
-
-  void _showDownloadLinkDialog(BuildContext context) async {
-    final filePicker = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['txt'],
-    );
-
-    if (filePicker == null || filePicker.files.isEmpty) return;
-
-    final path = filePicker.files.first.path!;
-    await fileMerger.mergeFiles(path, true);
-  }
-
-  Future<void> _shareFile(String fileName, String channelId) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$fileName ${Language.get('shareFileDownloading')}')),
-    );
-    final messages = await discordService.getMessages(channelId, 1);
-
-    final lastMessageContent = messages.first;
-    final Map<String, dynamic> data = jsonDecode(lastMessageContent);
-
-    final messageId = data['messageId'];
-    final fileNameFromMessage = data['fileName'] + 'temp.txt';
-    final filePath = await pathHelper.getDownloadsDirectoryPath()+ fileNameFromMessage;
-    final channelIdFromMessage = data['channelId'];
-
-    final url = await discordService.getFileUrl(channelIdFromMessage, messageId);
-    await fileDownloader.fileDownload(url,filePath);
-    await fileShare.generateLinkFileAndShare(filePath);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$fileName ${Language.get('shareFileDownloaded')}')),
-    );
-    final linkFile = File(filePath);
-    if (await linkFile.exists()) {
-      await linkFile.delete();
     }
   }
 
@@ -389,7 +411,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
           color: Colors.blue,
         ),
         title: Text(
-          currentPath.isEmpty ? 'DiscordStorage' : 'DiscordStorage/${currentPath.join('/')}',
+          currentPath.isEmpty ? 'DiscordStorage' : '${currentPath.join('/')}',
           style: const TextStyle(color: Colors.purple),
         ),
         centerTitle: true,

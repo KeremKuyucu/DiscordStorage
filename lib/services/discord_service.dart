@@ -38,7 +38,7 @@ class DiscordService {
   }
   Future<String> getOrCreateMainStorageChannel() async {
     final String channelToFind = 'discord-storage-main-shard-persistent-data-9b1e';
-    final String desiredTopic = 'Disbox Storage System | Please do not edit or create duplicates.';
+    final String desiredTopic = 'DiscordStorage Storage System | Please do not edit or create duplicates.';
 
     try {
       // --- 1. ADIM: Kanalın mevcut olup olmadığını kontrol et ---

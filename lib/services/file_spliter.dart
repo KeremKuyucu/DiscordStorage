@@ -148,11 +148,12 @@ class Filespliter {
         body: {'content': messageString},
       );
 
-      fileSystemService.load().then((_) {
+      await fileSystemService.load().then((_) {
         fileSystemService.createFile([], fileName, SettingsService.channelId);
         fileSystemService.save();
         Logger.log('Saved to the file system: $fileName');
       });
+      await fileSystemService.load();
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => DiscordStorageLobi()),

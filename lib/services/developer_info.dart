@@ -121,8 +121,6 @@ class DeveloperInfo {
   static Future<void> _launchURL(String urlString) async {
     final Uri url = Uri.parse(urlString);
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      // Hata durumunda konsola bir mesaj yazdırabilirsiniz.
-      // Geliştirme aşamasında `print` kullanmak yararlıdır.
       debugPrint('Could not launch $urlString');
     }
   }

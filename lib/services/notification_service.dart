@@ -138,7 +138,6 @@ class NotificationService {
             ? BigTextStyleInformation(body, contentTitle: title)
             : null,
         color: _getNotificationColor(type),
-        icon: _getNotificationIcon(type),
         ongoing: type == NotificationType.progress,
         autoCancel: type != NotificationType.progress,
         ticker: title,
@@ -230,7 +229,6 @@ class NotificationService {
           AndroidNotificationAction(
             'cancel_action',
             'İptal Et',
-            icon: DrawableResourceAndroidBitmap('@drawable/ic_cancel'),
           ),
         ] : null,
       );
@@ -276,7 +274,7 @@ class NotificationService {
 
     if (showDetailedProgress) {
       final progressBar = _createProgressBar(progress, barWidth);
-      body.writeln('[$progressBar] $progressPercent%');
+      body.writeln('$progressPercent%');
     } else {
       body.writeln('$progressPercent%');
     }

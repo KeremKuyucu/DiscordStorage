@@ -21,13 +21,14 @@
   "invalidFolder": "Geçersiz klasör",
   "save": "Kaydet",
   "cancel": "İptal",
+  "ok": "Tamam",
   "newNameLabel": "Yeni ad",
   "deleteConfirmation": "Sil",
   "permanentlyDelete": "Dosya kalıcı olarak silinecek.",
   "deleteFromDiscord": "Dosyayı Discord'dan da sil",
   "deleteFileConfirmation": "silinsin mi?",
   "shareFileDownloading": "Dosya Oluşturuluyor.",
-  "shareFileDownloaded": "Paylaşım dosyası İndirilenler klasörüne oluşturuldu. Kullanım süresi birkaç gündür...",
+  "shareFileUploaded": "Paylaşım dosyası oluşturuldu. Kullanım süresi birkaç gündür...",
   "fileNotSelected": "Dosya seçilmedi",
   "downloadComplete": "İndirme tamamlandı",
   "downloadingFile": "indiriliyor...",
@@ -44,7 +45,7 @@
   "categoryId": "Kategori ID",
   "saveLabel": "Kaydet",
   "loadFilesLabel": "Discord sunucusundan dosyaları yükle",
-  "themeLabel": "Tema",
+  "themeLabel": "Tema Light/Dark",
   "language": "Dil",
 
   "uploading": "Yükleniyor...",
@@ -93,5 +94,9 @@
   "shareError": "Paylaşım hatası",
   "sharedFileDownloadError": "Paylaşılan dosya indirme hatası",
   "messageNotFound": "Mesaj bulunamadı",
-  "sharedFileDownloaded": "Paylaşılan dosya indirildi"
+  "sharedFileDownloaded": "Paylaşılan dosya indirildi",
+
+  "enterFileId": "Dosya Kimliği Girin",
+  "messageId": "Mesaj Kimliği",
+  "fileCreationFailed": "Dosya oluşturulamadı veya veriler alınamadı"
 }
