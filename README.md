@@ -7,13 +7,13 @@
 <img align="right" width="auto" height="300" src="assets/logo.png">
 <br clear="left"/>
 
-- 📁 Folder structure support & auto-sync
-- 📦 File chunking (10MB max size per part)
-- 🔄 File reassembly & restoration
-- 🛡 SHA-256 based file integrity verification
-- 🧪 `debugLog` support for error tracing
-- 🖥️ Flutter-based clean UI (mobile & desktop)
-- 🔍 Auto update check system
+- [x] 📁 Folder structure support & auto-sync
+- [x] 📦 File chunking (10MB max size per part)
+- [x] 🔄 File reassembly & restoration
+- [x] 🛡 SHA-256 based file integrity verification
+- [x] 🧪 `debugLog` support for error tracing
+- [x] 🖥️ Flutter-based clean UI (mobile & desktop)
+- [x] 🔍 Auto update check system
 
 ---
 
@@ -21,8 +21,7 @@
 
 - [ ] 🔧 Fix 403 errors during file downloads by increasing timeout and improving retry logic
 - [ ] 🔄 Full auto-sync for all files
-- [ ] 🔗 File sharing via unique private links
-- [ ] 🛡 Enhanced bot token security (e.g. OS-level encryption)
+- [x] 🔗 File sharing via unique private links
 - [ ] 🔐 File encryption (pre-upload)
 - [ ] ☁️ External backup support (Google Drive, IPFS etc.)
 - [ ] 📜 Advanced logging & versioning
