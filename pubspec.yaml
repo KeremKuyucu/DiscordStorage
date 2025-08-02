@@ -1,7 +1,7 @@
 name: DiscordStorage
-description: "DiscordStorage new version"
+description: "Free, unlimited cloud storage"
 publish_to: 'none'
-version: 0.1.9-alpha
+version: 0.2.0-alpha
 
 environment:
   sdk: ^3.7.2
