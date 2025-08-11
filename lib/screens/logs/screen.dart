@@ -49,7 +49,7 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
   }
 
   Future<void> _loadLogs() async {
-    print('_loadLogs called');
+    Logger.info('_loadLogs called');
     if (!mounted) return;
 
     setState(() {
@@ -57,11 +57,7 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
     });
 
     try {
-      print('Attempting to read logs...');
-
-      // First ensure logger is initialized
-      await Logger.init();
-      print('Logger initialized');
+      Logger.info('Attempting to read logs...');
 
       // Try the new method first
       List<LogEntry> loadedLogs = [];
@@ -72,13 +68,13 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
           toDate: toDate,
           limit: 1000,
         );
-        print('New method: Loaded ${loadedLogs.length} logs');
+        Logger.info('New method: Loaded ${loadedLogs.length} logs');
       } catch (e) {
-        print('New method failed: $e, trying legacy method...');
+        Logger.info('New method failed: $e, trying legacy method...');
 
         // Fallback to legacy method
         final legacyLogs = await Logger.readLogsAsStrings();
-        print('Legacy method: Found ${legacyLogs.length} log strings');
+        Logger.info('Legacy method: Found ${legacyLogs.length} log strings');
 
         // Convert to LogEntry objects
         for (final logString in legacyLogs) {
@@ -98,7 +94,7 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
           loadedLogs = loadedLogs.take(1000).toList();
         }
 
-        print('Fallback method: Processed ${loadedLogs.length} logs');
+        Logger.info('Fallback method: Processed ${loadedLogs.length} logs');
       }
 
       if (mounted) {
@@ -107,10 +103,10 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
           _applySearchFilter();
           isLoading = false;
         });
-        print('State updated, isLoading: false, showing ${filteredLogs.length} filtered logs');
+        Logger.info('State updated, isLoading: false, showing ${filteredLogs.length} filtered logs');
       }
     } catch (e) {
-      print('Complete error loading logs: $e');
+      Logger.error('Complete error loading logs: $e');
       if (mounted) {
         setState(() {
           logs = []; // Set empty list on error
@@ -240,7 +236,6 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
       case LogLevel.debug:
         return Colors.blue;
       case LogLevel.info:
-      default:
         return Colors.green;
     }
   }
@@ -254,7 +249,6 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
       case LogLevel.debug:
         return Icons.bug_report;
       case LogLevel.info:
-      default:
         return Icons.info;
     }
   }
@@ -442,7 +436,7 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
                               },
                             ),
                           );
-                        }).toList(),
+                        }),
                       ],
                     ),
                   ),
@@ -638,3 +632,4 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
     );
   }
 }
+

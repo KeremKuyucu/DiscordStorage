@@ -34,7 +34,7 @@ class NotificationService {
 
   Future<void> initializeNotifications() async {
     try {
-      Logger.log('Initializing notifications...');
+      Logger.info('Initializing notifications...');
 
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -55,9 +55,9 @@ class NotificationService {
       );
 
       await _createNotificationChannels();
-      Logger.log('Notifications initialized successfully.');
+      Logger.info('Notifications initialized successfully.');
     } catch (e) {
-      Logger.log('Error initializing notifications: $e');
+      Logger.info('Error initializing notifications: $e');
     }
   }
 
@@ -104,7 +104,7 @@ class NotificationService {
 
   /// Bildirime tıklanma olayı
   void _onNotificationTap(NotificationResponse response) {
-    Logger.log('Notification tapped with payload: ${response.payload}');
+    Logger.info('Notification tapped with payload: ${response.payload}');
     // Burada bildirime özel aksiyonlar eklenebilir
   }
 
@@ -121,7 +121,7 @@ class NotificationService {
         Duration? timeout,
       }) async {
     try {
-      Logger.log('Showing notification: $title - $body');
+      Logger.info('Showing notification: $title - $body');
 
       final notificationId = id ?? _generateNotificationId();
       final channelInfo = _getChannelInfo(type);
@@ -152,7 +152,7 @@ class NotificationService {
       );
 
       _activeNotifications.add(notificationId);
-      Logger.log('Notification shown successfully (ID: $notificationId)');
+      Logger.info('Notification shown successfully (ID: $notificationId)');
 
       // Otomatik silme
       if (timeout != null) {
@@ -160,7 +160,7 @@ class NotificationService {
       }
 
     } catch (e) {
-      Logger.log('Error showing notification: $e');
+      Logger.info('Error showing notification: $e');
     }
   }
 
@@ -178,12 +178,12 @@ class NotificationService {
         Duration? estimatedTime,
       }) async {
     if (total <= 0 || current < 0) {
-      Logger.log('Invalid progress values: $current/$total');
+      Logger.info('Invalid progress values: $current/$total');
       return;
     }
 
     try {
-      Logger.log('Updating progress notification: $current/$total');
+      Logger.info('Updating progress notification: $current/$total');
 
       final notificationId = id ?? _progressNotificationId;
       final progress = (current / total).clamp(0.0, 1.0);
@@ -249,7 +249,7 @@ class NotificationService {
       }
 
     } catch (e) {
-      Logger.log('Error showing progress notification: $e');
+      Logger.info('Error showing progress notification: $e');
     }
   }
 
@@ -273,7 +273,6 @@ class NotificationService {
     }
 
     if (showDetailedProgress) {
-      final progressBar = _createProgressBar(progress, barWidth);
       body.writeln('$progressPercent%');
     } else {
       body.writeln('$progressPercent%');
@@ -292,27 +291,9 @@ class NotificationService {
     return body.toString().trim();
   }
 
-  /// İlerleme çubuğu oluştur
-  String _createProgressBar(double progress, int width) {
-    final pos = (width * progress).round();
-    final buffer = StringBuffer();
-
-    for (int i = 0; i < width; i++) {
-      if (i < pos) {
-        buffer.write('█');
-      } else if (i == pos && progress < 1.0) {
-        buffer.write('▌');
-      } else {
-        buffer.write('░');
-      }
-    }
-
-    return buffer.toString();
-  }
-
   /// İlerleme tamamlandığında çağrılır
   Future<void> _handleProgressComplete(int id, String? operation, String? fileName) async {
-    Logger.log('Operation completed, removing progress notification (ID: $id)');
+    Logger.info('Operation completed, removing progress notification (ID: $id)');
 
     // İlerleme bildirimini kaldır
     await cancelNotification(id);
@@ -397,9 +378,9 @@ class NotificationService {
     try {
       await flutterLocalNotificationsPlugin.cancel(id);
       _activeNotifications.remove(id);
-      Logger.log('Notification cancelled (ID: $id)');
+      Logger.info('Notification cancelled (ID: $id)');
     } catch (e) {
-      Logger.log('Error cancelling notification: $e');
+      Logger.info('Error cancelling notification: $e');
     }
   }
 
@@ -408,9 +389,9 @@ class NotificationService {
     try {
       await flutterLocalNotificationsPlugin.cancelAll();
       _activeNotifications.clear();
-      Logger.log('All notifications cancelled');
+      Logger.info('All notifications cancelled');
     } catch (e) {
-      Logger.log('Error cancelling all notifications: $e');
+      Logger.info('Error cancelling all notifications: $e');
     }
   }
 
@@ -458,21 +439,6 @@ class NotificationService {
         return const Color(0xFF1976D2);
       case NotificationType.info:
       return const Color(0xFF7B1FA2);
-    }
-  }
-
-  String? _getNotificationIcon(NotificationType type) {
-    switch (type) {
-      case NotificationType.error:
-        return '@drawable/ic_error';
-      case NotificationType.success:
-        return '@drawable/ic_check';
-      case NotificationType.warning:
-        return '@drawable/ic_warning';
-      case NotificationType.progress:
-        return '@drawable/ic_download';
-      case NotificationType.info:
-      return null;
     }
   }
 
@@ -527,3 +493,6 @@ class _ChannelInfo {
 
   _ChannelInfo(this.channelId, this.channelName, this.description);
 }
+
+
+

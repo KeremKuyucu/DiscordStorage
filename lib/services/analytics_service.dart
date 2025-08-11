@@ -15,7 +15,7 @@ class AnalyticsService {
     required String eventEndpoint,
   }) async {
     if (_hasSentEvent) {
-      Logger.log('Analytics event already sent during this session.');
+      Logger.info('Analytics event already sent during this session.');
       return false;
     }
 
@@ -42,7 +42,7 @@ class AnalyticsService {
 
       // 200 (OK) veya 201 (Created) durum kodları başarı olarak kabul edilir.
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        Logger.log('Analytics event sent successfully.');
+        Logger.info('Analytics event sent successfully.');
         return true;
       } else {
         // Hata durumunda sunucudan dönen mesajı da loglamak daha faydalıdır.
@@ -59,3 +59,6 @@ class AnalyticsService {
     }
   }
 }
+
+
+

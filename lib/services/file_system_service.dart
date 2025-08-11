@@ -39,7 +39,7 @@ class FileSystemService {
       'type': 'folder',
       'children': <String, dynamic>{},
     };
-    Logger.log('Folder created: $name');
+    Logger.info('Folder created: $name');
   }
 
   void renameItem(List<String> path, String oldName, String newName) {
@@ -69,7 +69,7 @@ class FileSystemService {
       item['name'] = newName;
     }
 
-    Logger.log('Item renamed: $oldName -> $newName');
+    Logger.info('Item renamed: $oldName -> $newName');
   }
 
   List<String> listItemNames(List<String> path) {
@@ -124,7 +124,7 @@ class FileSystemService {
       'extension': extension,
     };
 
-    Logger.log('File created: $name');
+    Logger.info('File created: $name');
   }
 
   void deleteItem(List<String> path, String name) {
@@ -147,7 +147,7 @@ class FileSystemService {
     // --- EĞER SİLİNECEK ÖĞE BİR DOSYA İSE ---
     if (itemToDelete['type'] == 'file') {
       parentChildren.remove(name);
-      Logger.log('File deleted: $name');
+      Logger.info('File deleted: $name');
       return;
     }
 
@@ -157,7 +157,7 @@ class FileSystemService {
 
       // Klasörün içi doluysa, içindekileri ana klasöre taşı
       if (folderChildren.isNotEmpty) {
-        Logger.log('Folder "$name" is not empty. Moving its contents to the parent directory...');
+        Logger.info('Folder "$name" is not empty. Moving its contents to the parent directory...');
 
         // Klasörün içindeki her bir öğe için döngü başlat
         for (var entry in folderChildren.entries) {
@@ -170,14 +170,14 @@ class FileSystemService {
           } else {
             // İsim çakışması yoksa, öğeyi ana klasörün altına taşı
             parentChildren[childName] = childNode;
-            Logger.log('Moved "$childName" to parent directory.');
+            Logger.info('Moved "$childName" to parent directory.');
           }
         }
       }
 
       // Son olarak, artık içi boş olan klasörü sil
       parentChildren.remove(name);
-      Logger.log('Folder deleted: $name');
+      Logger.info('Folder deleted: $name');
     }
   }
 
@@ -191,7 +191,7 @@ class FileSystemService {
     final item = fromNode['children'].remove(name);
     if (item != null) {
       toNode['children'][name] = item;
-      Logger.log('Item moved: $name');
+      Logger.info('Item moved: $name');
     } else {
       Logger.error('Item to move not found: $name');
     }
@@ -202,13 +202,13 @@ class FileSystemService {
     final jsonString = jsonEncode(fileSystem);
     await prefs.setString('fileSystem', jsonString);
     saveToDiscord();
-    Logger.log('File system saved.');
+    Logger.info('File system saved.');
   }
 
   Future<void> load() async {
     bool discordLoaded = await loadFromDiscord();
     if (discordLoaded) {
-      Logger.log('File system loaded from Discord.');
+      Logger.info('File system loaded from Discord.');
       return;
     }
 
@@ -216,7 +216,7 @@ class FileSystemService {
     final jsonString = prefs.getString('fileSystem');
     if (jsonString != null) {
       fileSystem = jsonDecode(jsonString);
-      Logger.log('File system loaded from local storage.');
+      Logger.info('File system loaded from local storage.');
     } else {
       Logger.error('No saved file system found locally.');
     }
@@ -226,7 +226,7 @@ class FileSystemService {
       final jsonString = jsonEncode(fileSystem);
 
       // Geçici dosyayı Discord'a yükle
-      Logger.log('Uploading backup file to Discord...');
+      Logger.info('Uploading backup file to Discord...');
       await fileUploader.uploadTextAsFileToDiscord(message: jsonString,channelId: SettingsService.storageChannelId);
 
     } catch (e) {
@@ -270,3 +270,7 @@ class FileSystemService {
   }
 
 }
+
+
+
+

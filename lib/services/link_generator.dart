@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:DiscordStorage/services/file_hash_service.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
 import 'package:DiscordStorage/services/discord_service.dart';
 import 'package:DiscordStorage/services/notification_service.dart';
@@ -14,7 +13,7 @@ class LinkGenerator {
   final FileUploader _fileUploader = FileUploader();
 
   Future<String?> generateShareLinkFromFile(String filePath) async {
-    Logger.log('Creating share link from file...');
+    Logger.info('Creating share link from file...');
 
     final int notificationId = 100;
     final Stopwatch stopwatch = Stopwatch();
@@ -70,11 +69,8 @@ class LinkGenerator {
           final messageId = jsonObj['messageId'];
 
           final url = await _discordService.getFileUrl(channelId, messageId);
-          if (url == null) {
-            throw Exception('Failed to retrieve URL.');
-          }
 
-          Logger.log('[$partNo] URL: $url');
+          Logger.info('[$partNo] URL: $url');
           final partInfo = {'partNo': partNo, 'partUrl': url};
           buffer.writeln(jsonEncode(partInfo));
 
@@ -99,12 +95,8 @@ class LinkGenerator {
         fileName: '$fileName.links.txt',
       );
 
-      if (uploadResult == null) {
-        throw Exception('Discord upload failed.');
-      }
-
       final fileUrl = 'https://discordstorage-share.vercel.app/$uploadResult';
-      Logger.log('Share URL created: $fileUrl');
+      Logger.info('Share URL created: $fileUrl');
 
       return fileUrl;
     } catch (e) {
@@ -145,3 +137,7 @@ class LinkGenerator {
     );
   }
 }
+
+
+
+

@@ -14,7 +14,7 @@ class FileUploader {
   JsonFunctions jsonFunctions = JsonFunctions();
 
   Future<void> fileUpload(String webhookUrl, String filePath, int partNo, String message, int delete, String linklerDosyasi) async {
-    Logger.log('Uploading file: $filePath, Webhook: $webhookUrl, Part: $partNo');
+    Logger.info('Uploading file: $filePath, Webhook: $webhookUrl, Part: $partNo');
 
     try {
       var request = http.MultipartRequest('POST', Uri.parse(webhookUrl));
@@ -25,19 +25,19 @@ class FileUploader {
       var responseData = await response.stream.bytesToString();
 
       if (response.statusCode == 200) {
-        Logger.log('File uploaded successfully: $filePath');
+        Logger.info('File uploaded successfully: $filePath');
 
         if (delete == 1) {
           try {
             File(filePath).deleteSync();
-            Logger.log('File deleted: $filePath');
+            Logger.info('File deleted: $filePath');
           } catch (e) {
             Logger.error('Error deleting file: $e');
           }
         }
 
         if(debugPrint) {
-          Logger.log('Webhook response: $responseData');
+          Logger.info('Webhook response: $responseData');
         }
 
         Map<String, String> ids = jsonFunctions.findIds(responseData);
@@ -51,7 +51,7 @@ class FileUploader {
                 '${jsonFunctions.writeJson(partNo, channelId2, messageId2)}\n',
                 mode: FileMode.append,
               );
-              Logger.log('Link info written to file: $linklerDosyasi');
+              Logger.info('Link info written to file: $linklerDosyasi');
             } catch (e) {
               Logger.error('Failed to write to link file: $e');
             }
@@ -99,9 +99,9 @@ class FileUploader {
       final responseBody = await response.stream.bytesToString();
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        Logger.log('Message successfully uploaded as a file: ${tempFile.path}');
+        Logger.info('Message successfully uploaded as a file: ${tempFile.path}');
         if(debugPrint){
-          Logger.log('Response: $responseBody');
+          Logger.info('Response: $responseBody');
         }
       } else {
         Logger.error('Upload failed. Status code: ${response.statusCode}');
@@ -151,3 +151,7 @@ class FileUploader {
     }
   }
 }
+
+
+
+

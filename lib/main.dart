@@ -9,23 +9,25 @@ import 'package:DiscordStorage/screens/settings/service.dart';
 
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
   await Logger.init();
-  Logger.log('Application is starting...');
+  Logger.info('Logger initialized.');
+
+  WidgetsFlutterBinding.ensureInitialized();
+  Logger.info('Application is starting...');
 
   // Initialize notifications
   NotificationService.init();
-  Logger.log('Notifications initialized.');
+  Logger.info('Notifications initialized.');
 
   // Check permissions
   PermissionService.init();
-  Logger.log('Permissions checked.');
+  Logger.info('Permissions checked.');
 
   await SettingsService.load();
   await Language.load(SettingsService.languageCode);
 
   runApp(DiscordStorage());
-  Logger.log('runApp called, application started.');
+  Logger.info('runApp called, application started.');
 }
 
 class DiscordStorage extends StatefulWidget {
@@ -70,3 +72,5 @@ flutter build apk --release
 flutter build windows
 
 */
+
+

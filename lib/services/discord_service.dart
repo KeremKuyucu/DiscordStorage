@@ -15,17 +15,17 @@ class DiscordService {
   };
 
   Future<bool> checkAndSaveToken(String token) async {
-    Logger.log('Starting token validation...');
+    Logger.info('Starting token validation...');
     try {
       final response = await http.get(
         Uri.parse('https://discord.com/api/v10/users/@me'),
         headers: {'Authorization': 'Bot $token'},
       );
 
-      Logger.log('HTTP response code: ${response.statusCode}');
+      Logger.info('HTTP response code: ${response.statusCode}');
 
       if (response.statusCode == 200) {
-        Logger.log('Token is valid');
+        Logger.info('Token is valid');
         return true;
       } else {
         Logger.error('Invalid token. HTTP Code: ${response.statusCode}');
@@ -42,7 +42,7 @@ class DiscordService {
 
     try {
       // --- 1. ADIM: Kanalın mevcut olup olmadığını kontrol et ---
-      Logger.log('Searching for "$channelToFind" channel...');
+      Logger.info('Searching for "$channelToFind" channel...');
       final listUrl = Uri.parse('https://discord.com/api/v10/guilds/${SettingsService.guildId}/channels');
       final listResponse = await http.get(listUrl, headers: _headers);
 
@@ -57,12 +57,12 @@ class DiscordService {
 
         if (existingChannel != null) {
           final channelId = existingChannel['id'];
-          Logger.log('"$channelToFind" channel already exists. ID: $channelId');
+          Logger.info('"$channelToFind" channel already exists. ID: $channelId');
 
           // ✅ YENİ: Kanal başlığını kontrol et ve gerekirse ayarla.
           final currentTopic = existingChannel['topic'];
           if (currentTopic == null || currentTopic != desiredTopic) {
-            Logger.log('Channel topic is missing or incorrect. Setting it now...');
+            Logger.info('Channel topic is missing or incorrect. Setting it now...');
             await _setChannelTopic(channelId, desiredTopic);
           }
 
@@ -73,12 +73,12 @@ class DiscordService {
       }
 
       // --- 2. ADIM: Kanal bulunamadıysa oluştur ---
-      Logger.log('"$channelToFind" channel not found. Creating a new one...');
+      Logger.info('"$channelToFind" channel not found. Creating a new one...');
       // ... (kanal oluşturma kodunun bu kısmı aynı kalıyor)
       final newChannelId = await createChannel(channelToFind);
 
       if (newChannelId != null) {
-        Logger.log('Channel created: $channelToFind (ID: $newChannelId)');
+        Logger.info('Channel created: $channelToFind (ID: $newChannelId)');
 
         // ✅ YENİ: Kanal sıfırdan oluşturulduğu için başlığını doğrudan ayarla.
         await _setChannelTopic(newChannelId, desiredTopic);
@@ -103,7 +103,7 @@ class DiscordService {
       // Kanal güncellemek için PATCH metodu kullanılır.
       final response = await http.patch(url, headers: _headers, body: body);
       if (response.statusCode == 200) {
-        Logger.log('Channel topic has been set for channel ID: $channelId');
+        Logger.info('Channel topic has been set for channel ID: $channelId');
       } else {
         Logger.error('Failed to set channel topic: ${response.body}');
       }
@@ -126,7 +126,7 @@ class DiscordService {
             channel['name'] != 'discord-storage-main-shard-persistent-data-9b1e'
         );
 
-        Logger.log('Fetched ${filteredChannels.length} channels in category.');
+        Logger.info('Fetched ${filteredChannels.length} channels in category.');
         return filteredChannels.map<Map<String, String>>((channel) {
           return {
             'id': channel['id'],
@@ -150,7 +150,7 @@ class DiscordService {
       final response = await http.delete(url, headers: _headers);
 
       if (response.statusCode == 200) {
-        Logger.log('Deleted channel: $channelId');
+        Logger.info('Deleted channel: $channelId');
         return true;
       } else {
         Logger.error('Failed to delete channel: ${response.statusCode} - ${response.body}');
@@ -175,7 +175,7 @@ class DiscordService {
     );
 
     if (response.statusCode == 200) {
-      Logger.log('Channel name successfully changed to: $newName');
+      Logger.info('Channel name successfully changed to: $newName');
     } else {
       Logger.error('Failed to change channel name: ${response.statusCode}');
       Logger.error(response.body);
@@ -192,7 +192,7 @@ class DiscordService {
     // Döngü, ilk deneme dahil olmak üzere 'maxRetries' kadar çalışacak.
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        Logger.log('Attempt $attempt/$maxRetries: Getting file URL for message $messageId');
+        Logger.info('Attempt $attempt/$maxRetries: Getting file URL for message $messageId');
 
         var response = await http.get(
           Uri.parse('https://discord.com/api/v10/channels/$channelId/messages/$messageId'),
@@ -204,7 +204,7 @@ class DiscordService {
           Map<String, dynamic> jsonResponse = jsonDecode(response.body);
           if (jsonResponse.containsKey('attachments') && jsonResponse['attachments'].isNotEmpty) {
             String url = jsonResponse['attachments'][0]['url'];
-            Logger.log('Success! File URL retrieved: $url');
+            Logger.info('Success! File URL retrieved: $url');
             return url;
           } else {
             // Mantıksal Hata: Mesaj var ama içinde ek yok. Tekrar denemek anlamsız.
@@ -234,7 +234,7 @@ class DiscordService {
       if (attempt < maxRetries) {
         // Her denemede bekleme süresini 2 ile çarp (1s, 2s, 4s...)
         final delay = initialDelay * pow(2, attempt - 1);
-        Logger.log('Waiting for ${delay.inSeconds} seconds before retrying...');
+        Logger.info('Waiting for ${delay.inSeconds} seconds before retrying...');
         await Future.delayed(delay);
       }
     }
@@ -258,7 +258,7 @@ class DiscordService {
 
       final List<dynamic> messages = jsonDecode(response.body);
       if (messages.isEmpty) {
-        Logger.log('Kanaldan hiç mesaj gelmedi.');
+        Logger.info('Kanaldan hiç mesaj gelmedi.');
         return null;
       }
 
@@ -266,10 +266,10 @@ class DiscordService {
       final attachments = latestMessage['attachments'] as List;
       if (attachments.isNotEmpty) {
         final fileUrl = attachments.first['url'];
-        Logger.log('Son dosya bağlantısı bulundu: $fileUrl');
+        Logger.info('Son dosya bağlantısı bulundu: $fileUrl');
         return fileUrl;
       } else {
-        Logger.log('Son mesajda dosya ekleri bulunamadı.');
+        Logger.info('Son mesajda dosya ekleri bulunamadı.');
       }
     } catch (e) {
       Logger.error('getLatestFileUrl hatası: $e');
@@ -284,12 +284,12 @@ class DiscordService {
 
     try {
       final response = await http.post(url, headers: _headers, body: body);
-      Logger.log('Webhook creation status code: ${response.statusCode}');
+      Logger.info('Webhook creation status code: ${response.statusCode}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         String webhookUrl = 'https://discord.com/api/webhooks/${data['id']}/${data['token']}';
-        Logger.log('Webhook created: $webhookUrl');
+        Logger.info('Webhook created: $webhookUrl');
         SettingsService.createdWebhook = webhookUrl;
         return webhookUrl;
       } else {
@@ -318,7 +318,7 @@ class DiscordService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        Logger.log('Channel created: ${data['name']} (ID: ${data['id']})');
+        Logger.info('Channel created: ${data['name']} (ID: ${data['id']})');
         await createWebhook(data['id'], 'File Uploader');
         return data['id'];
       } else {
@@ -340,7 +340,7 @@ class DiscordService {
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
         List<String> messages = data.map((m) => m['content'] as String).toList();
-        Logger.log('Fetched ${messages.length} messages from channel $channelId');
+        Logger.info('Fetched ${messages.length} messages from channel $channelId');
         return messages;
       } else {
         Logger.error('Failed to get messages: ${response.body}');
@@ -352,3 +352,7 @@ class DiscordService {
     }
   }
 }
+
+
+
+

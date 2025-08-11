@@ -255,7 +255,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
     final file = File(filePath);
     if (await file.exists()) {
       await file.delete();
-      Logger.log('$fileNameFromMessage deleted');
+      Logger.info('$fileNameFromMessage deleted');
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(Language.get('downloadComplete'))),
@@ -635,4 +635,6 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
     );
   }
 }
+
+
 

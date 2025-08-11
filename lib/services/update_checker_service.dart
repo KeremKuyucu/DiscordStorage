@@ -20,21 +20,21 @@ class UpdateChecker {
   });
 
   Future<void> checkForUpdate() async {
-    Logger.log('Update check started...');
+    Logger.info('Update check started...');
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
     String localVersion = packageInfo.version;
-    Logger.log('Local version: $localVersion');
+    Logger.info('Local version: $localVersion');
 
     try {
       final response = await http.get(
         Uri.parse('https://api.github.com/repos/$repoOwner/$repoName/releases'),
       );
 
-      Logger.log('GitHub API response code: ${response.statusCode}');
+      Logger.info('GitHub API response code: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        Logger.log('Number of releases: ${data.length}');
+        Logger.info('Number of releases: ${data.length}');
 
         if (data.isNotEmpty) {
           final latestRelease = data[0];
@@ -42,20 +42,20 @@ class UpdateChecker {
           if (remoteVersion.startsWith('v')) {
             remoteVersion = remoteVersion.substring(1);
           }
-          Logger.log('Remote version: $remoteVersion');
+          Logger.info('Remote version: $remoteVersion');
 
           String updateNotes = latestRelease['body'] ?? 'No release notes available';
           String html = md.markdownToHtml(updateNotes);
           String releasePageUrl = 'https://github.com/$repoOwner/$repoName/releases/latest';
 
           if (remoteVersion != localVersion) {
-            Logger.log('New version found: $remoteVersion');
+            Logger.info('New version found: $remoteVersion');
             _showUpdateDialog(localVersion, remoteVersion, html, releasePageUrl);
           } else {
-            Logger.log('You are already on the latest version.');
+            Logger.info('You are already on the latest version.');
           }
         } else {
-          Logger.log('Release data is empty.');
+          Logger.info('Release data is empty.');
         }
       } else {
         Logger.error('GitHub API error: ${response.statusCode}');
@@ -66,7 +66,7 @@ class UpdateChecker {
   }
 
   void _showUpdateDialog(String localVersion, String remoteVersion, String html, String releaseUrl) {
-    Logger.log('Showing update dialog.');
+    Logger.info('Showing update dialog.');
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -94,7 +94,7 @@ class UpdateChecker {
             TextButton(
               child: const Text('Update'),
               onPressed: () {
-                Logger.log('Update link clicked: $releaseUrl');
+                Logger.info('Update link clicked: $releaseUrl');
                 EasyLauncher.url(url: releaseUrl);
               },
             ),
@@ -104,3 +104,7 @@ class UpdateChecker {
     );
   }
 }
+
+
+
+

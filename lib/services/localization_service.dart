@@ -10,7 +10,7 @@ class Language {
       final jsonString = await rootBundle.loadString('assets/lang/$languageCode.json');
       _translations = json.decode(jsonString);
     } catch (e) {
-      Logger.log('Language file not found: $languageCode.json');
+      Logger.info('Language file not found: $languageCode.json');
       rethrow;
     }
   }
@@ -23,3 +23,7 @@ class Language {
     return '[$key]';
   }
 }
+
+
+
+

@@ -1,7 +1,6 @@
 import 'package:DiscordStorage/services/logger_service.dart';
 import 'package:DiscordStorage/services/link_generator.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:io';
@@ -11,14 +10,14 @@ class UrlOptions {
   final LinkGenerator _linkGenerator = LinkGenerator();
 
   Future<void> share(String filePath) async {
-    Logger.log('Starting share process...');
+    Logger.info('Starting share process...');
 
     final shareUrl = await _linkGenerator.generateShareLinkFromFile(filePath);
 
     if (shareUrl != null) {
-      Logger.log('URL to share: $shareUrl');
+      Logger.info('URL to share: $shareUrl');
       await Share.share(shareUrl);
-      Logger.log('Share screen opened.');
+      Logger.info('Share screen opened.');
     } else {
       Logger.error('Share link could not be generated, process cancelled.');
     }
@@ -29,13 +28,13 @@ class UrlOptions {
     try {
       final response = await http.get(url);
       if (response.statusCode != 200) {
-        print('HTTP Hatası: ${response.statusCode}');
+        Logger.error('HTTP Hatası: ${response.statusCode}');
         return null;
       }
 
       final data = jsonDecode(response.body);
       if (data['error'] != null) {
-        print('API Hatası: ${data['error']}');
+        Logger.error('API Hatası: ${data['error']}');
         return null;
       }
 
@@ -54,8 +53,10 @@ class UrlOptions {
 
       return filePath;
     } catch (e) {
-      print('Hata: $e');
+      Logger.error('Hata: $e');
       return null;
     }
   }
 }
+
+

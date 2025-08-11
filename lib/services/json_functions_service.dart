@@ -8,7 +8,7 @@ class JsonFunctions {
     String messageId = '';
 
     try {
-      Logger.log('Starting JSON parsing.');
+      Logger.info('Starting JSON parsing.');
       Map<String, dynamic> jsonResponse = jsonDecode(jsonStr);
 
       if (jsonResponse.containsKey('channel_id')) {
@@ -27,7 +27,7 @@ class JsonFunctions {
           }
         }
       }
-      Logger.log('JSON parsing completed. channelId: $channelId, messageId: $messageId');
+      Logger.info('JSON parsing completed. channelId: $channelId, messageId: $messageId');
     } catch (e) {
       Logger.error('JSON parse error: $e');
     }
@@ -43,19 +43,19 @@ class JsonFunctions {
     };
 
     String jsonString = jsonEncode(jsonObj);
-    Logger.log('JSON written: $jsonString');
+    Logger.info('JSON written: $jsonString');
     return jsonString;
   }
 
   String getSecondLine(String filePath) {
     try {
-      Logger.log('Reading second line from file: $filePath');
+      Logger.info('Reading second line from file: $filePath');
       List<String> lines = File(filePath).readAsLinesSync();
       if (lines.length >= 2) {
-        Logger.log('Second line found: ${lines[1]}');
+        Logger.info('Second line found: ${lines[1]}');
         return lines[1];
       } else {
-        Logger.log('Second line not found in the file.');
+        Logger.info('Second line not found in the file.');
       }
     } catch (e) {
       Logger.error('File read error: $e');
@@ -63,3 +63,7 @@ class JsonFunctions {
     return '';
   }
 }
+
+
+
+

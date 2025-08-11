@@ -4,12 +4,12 @@ import 'package:DiscordStorage/services/logger_service.dart';
 
 class FileDownloader {
   Future<int> fileDownload(String url, String fileName) async {
-    Logger.log('Downloading file: $url');
+    Logger.info('Downloading file: $url');
     try {
       var response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         await File(fileName).writeAsBytes(response.bodyBytes);
-        Logger.log('File downloaded successfully: $fileName');
+        Logger.info('File downloaded successfully: $fileName');
         return 0;
       } else {
         Logger.error('Download failed, status code: ${response.statusCode}');
@@ -21,3 +21,7 @@ class FileDownloader {
     }
   }
 }
+
+
+
+

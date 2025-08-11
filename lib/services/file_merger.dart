@@ -28,7 +28,7 @@ class FileMerger {
   FileMerger();
 
   Future<void> mergeFiles(String filePath, bool sharedFile) async {
-    Logger.log('mergeFiles process started');
+    Logger.info('mergeFiles process started');
 
     // --- YENİ EKLENENLER: ID ve Kronometre ---
     final int notificationId = 100;
@@ -57,7 +57,7 @@ class FileMerger {
     final targetFilePath = '$downloadsDir${Platform.pathSeparator}$targetFileName';
     final expectedHash = lines[2];
 
-    Logger.log('--- Phase 1: Fetching all part URLs ---');
+    Logger.info('--- Phase 1: Fetching all part URLs ---');
     final List<RichLink> richLinks = [];
     if (!sharedFile) {
       for (int i = 4; i < lines.length; i++) {
@@ -97,10 +97,10 @@ class FileMerger {
     }
 
     richLinks.sort((a, b) => a.partNumber.compareTo(b.partNumber));
-    Logger.log('Links sorted.');
+    Logger.info('Links sorted.');
 
     // --- AŞAMA 2: DOSYALARI İNDİRME ---
-    Logger.log('--- Phase 2: Downloading all parts ---');
+    Logger.info('--- Phase 2: Downloading all parts ---');
     stopwatch.start();
     int downloadedParts = 0;
     final partFiles = <String>[];
@@ -150,7 +150,7 @@ class FileMerger {
     stopwatch.stop();
 
     // --- AŞAMA 3: DOSYALARI BİRLEŞTİRME ---
-    Logger.log('--- Phase 3: Merging all parts ---');
+    Logger.info('--- Phase 3: Merging all parts ---');
     final targetFile = File(targetFilePath);
     final sink = targetFile.openWrite();
     stopwatch.reset();
@@ -187,7 +187,7 @@ class FileMerger {
         playSound: true,
       );
     } else {
-      Logger.log('Successful File verified.');
+      Logger.info('Successful File verified.');
       await notificationService.showNotification(
         Language.get('verifySuccessTitle'), // "İndirme Tamamlandı"
         '$targetFileName ${Language.get('verifySuccessBody')}', // "... başarıyla indirildi."
@@ -196,3 +196,6 @@ class FileMerger {
     }
   }
 }
+
+
+

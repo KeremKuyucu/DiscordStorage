@@ -13,10 +13,10 @@ class PermissionService {
   }
 
   Future<void> requestPermissions() async {
-    Logger.log('Checking permissions...');
+    Logger.info('Checking permissions...');
 
     if (!Platform.isAndroid) {
-      Logger.log('Not Android platform, skipping permissions.');
+      Logger.info('Not Android platform, skipping permissions.');
       return;
     }
 
@@ -27,7 +27,7 @@ class PermissionService {
       return;
     }
 
-    Logger.log('Android SDK version: $sdkInt');
+    Logger.info('Android SDK version: $sdkInt');
 
     if (sdkInt >= 33) {
       if (await Permission.photos.isDenied) {
@@ -61,7 +61,7 @@ class PermissionService {
       }
     }
 
-    Logger.log('Permission check completed.');
+    Logger.info('Permission check completed.');
   }
 
   Future<int?> _getAndroidSdkInt() async {
@@ -74,3 +74,7 @@ class PermissionService {
     }
   }
 }
+
+
+
+

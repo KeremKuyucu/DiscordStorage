@@ -34,7 +34,7 @@ class SettingsService {
     languageCode = prefs.getString('language_code') ?? 'en';
     if (storageChannelId.isEmpty) {
       String? tempChannel = await _discordService.getOrCreateMainStorageChannel();
-      if (tempChannel != null && tempChannel.isNotEmpty) {
+      if (tempChannel.isNotEmpty) {
         await _secureStorage.write(key: 'storage_channel', value: tempChannel);
         storageChannelId = tempChannel;
       }

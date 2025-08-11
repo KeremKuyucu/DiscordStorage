@@ -26,7 +26,7 @@ class Filespliter {
   final PathHelper pathHelper = PathHelper();
 
   Future<void> splitFileAndUpload(String filePath, String linksTxt, BuildContext context) async {
-    Logger.log('splitFileAndUpload started for file: $filePath');
+    Logger.info('splitFileAndUpload started for file: $filePath');
 
     String fileName = path.basename(filePath);
     Directory tempDirectory = await getTemporaryDirectory();
@@ -48,17 +48,17 @@ class Filespliter {
 
       int fileSize = await file.length();
       int totalParts = (fileSize + partSize - 1) ~/ partSize;
-      Logger.log('Total number of parts: $totalParts');
+      Logger.info('Total number of parts: $totalParts');
 
       File controlFile = File(linksTxt);
       if (await controlFile.exists()) {
-        Logger.log('Link file available: $linksTxt');
+        Logger.info('Link file available: $linksTxt');
         List<String> lines = await controlFile.readAsLines();
         if (lines.length >= 3) {
           hash = lines[2];
           SettingsService.createdWebhook = lines.length >= 4 ? lines[3] : '';
           if (hash == await fileHash.getFileHash(filePath)) {
-            Logger.log('File hash has matched, upload in progress.');
+            Logger.info('File hash has matched, upload in progress.');
             for (int i = 4; i < lines.length; i++) {
                 Map<String, dynamic> jsonObj = jsonDecode(lines[i]);
                 availablePartNumber = jsonObj['partNo'];
@@ -68,14 +68,14 @@ class Filespliter {
           }
         }
       } else {
-        Logger.log('Creating new channel: $fileName');
+        Logger.info('Creating new channel: $fileName');
         await discordService.createChannel(fileName);
         await Future.delayed(const Duration(seconds: 3));
         String hashVal = await fileHash.getFileHash(filePath);
         await File(linksTxt).writeAsString(
           '$totalParts\n$fileName\n$hashVal\n$SettingsService.createdWebhook\n',
         );
-        Logger.log('Link file created: $linksTxt');
+        Logger.info('Link file created: $linksTxt');
       }
 
       RandomAccessFile raf = await file.open(mode: FileMode.read);
@@ -89,7 +89,7 @@ class Filespliter {
             : path.join(tempDir, '$fileName.part${i + 1}');
 
         await File(partFilename).writeAsBytes(buffer);
-        Logger.log('Part ${i + 1} has been created: $partFilename');
+        Logger.info('Part ${i + 1} has been created: $partFilename');
 
         String message = 'File Part: ${i + 1}';
         await fileUploader.fileUpload(SettingsService.createdWebhook, partFilename, i + 1, message, 1, linksTxt);
@@ -125,7 +125,7 @@ class Filespliter {
         );
       }
       await raf.close();
-      Logger.log('All parts loaded successfully.');
+      Logger.info('All parts loaded successfully.');
       stopwatch.stop();
 
     } catch (e) {
@@ -151,7 +151,7 @@ class Filespliter {
       await fileSystemService.load().then((_) {
         fileSystemService.createFile([], fileName, SettingsService.channelId);
         fileSystemService.save();
-        Logger.log('Saved to the file system: $fileName');
+        Logger.info('Saved to the file system: $fileName');
       });
       await fileSystemService.load();
       Navigator.pushReplacement(
@@ -163,3 +163,7 @@ class Filespliter {
     }
   }
 }
+
+
+
+

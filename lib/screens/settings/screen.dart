@@ -51,7 +51,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final name = channel['name'] ?? 'unknown';
       final id = channel['id'] ?? '';
 
-      Logger.log('Channel Name: $name - ID: $id');
+      Logger.info('Channel Name: $name - ID: $id');
 
       fileSystemService.createFile([], name, id);
     }
@@ -243,3 +243,4 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 }
+
