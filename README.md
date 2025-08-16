@@ -3,6 +3,10 @@
 > 📦 Use Discord as your own personal cloud storage  
 > ✨ Cross-platform app with Flutter — Android & Windows supported
 
+<p align="left">
+  <img src="https://img.shields.io/github/downloads/keremkuyucu/DiscordStorage/total?logo=github&style=for-the-badge&color=blue&label=Total%20Downloads"/>
+  </p>
+
 ## ✅ Completed Features
 <img align="right" width="auto" height="300" src="assets/logo.png">
 <br clear="left"/>
