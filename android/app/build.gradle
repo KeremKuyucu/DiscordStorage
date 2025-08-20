@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.kk.discordstorage"
+    namespace = "com.keremkuyucu.discordstorage"
     compileSdkVersion flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 

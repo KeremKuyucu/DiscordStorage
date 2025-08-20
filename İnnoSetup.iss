@@ -3,7 +3,7 @@
 
 ; === Temel Bilgiler / Basic Info ===
 #define AppName "DiscordStorage"
-#define AppVersion "v0.2.0-alpha"
+#define AppVersion "v0.2.1-alpha"
 #define AppPublisher "Kerem Kuyucu"
 #define AppURL "https://github.com/KeremKuyucu/DiscordStorage"
 #define AppExeName "discordstorage.exe"
@@ -43,7 +43,7 @@ Source: "{#LogoFile}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "Ek Kısayollar / Additional Shortcuts:"
-Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "Ek Kısayollar / Additional Shortcuts:"; Flags: unchecked
+Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "Ek Kısayollar / Additional Shortcuts:"
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\logo.ico"; WorkingDir: "{app}"

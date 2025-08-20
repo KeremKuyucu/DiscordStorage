@@ -71,6 +71,8 @@ adb install build\app\outputs\flutter-apk\app-release.apk
 flutter build apk --release
 flutter build windows
 
+flutter pub run msix:create
+
 */
 
 
