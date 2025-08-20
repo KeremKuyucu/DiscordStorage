@@ -42,7 +42,6 @@ class LinkGenerator {
 
       final fileName = lines[1];
       final hash = lines[2];
-      final webhook = lines[3];
 
       await notificationService.showProgressNotification(
         id: notificationId,
@@ -57,7 +56,7 @@ class LinkGenerator {
       buffer.writeln(fileName);
       buffer.writeln(hash);
 
-      final linkLines = lines.skip(3).toList();
+      final linkLines = lines.skip(4).toList();
       final totalOperations = linkLines.length;
 
       for (var i = 0; i < totalOperations; i++) {
@@ -113,12 +112,12 @@ class LinkGenerator {
   }
 
   void _updateProgressNotification(
-      int notificationId,
-      int current,
-      int total,
-      String fileName,
-      Stopwatch stopwatch,
-      ) async {
+    int notificationId,
+    int current,
+    int total,
+    String fileName,
+    Stopwatch stopwatch,
+  ) async {
     Duration? estimatedTime;
     if (stopwatch.elapsedMilliseconds > 500) {
       final avgTimePerLink = stopwatch.elapsedMilliseconds / current;
@@ -137,7 +136,3 @@ class LinkGenerator {
     );
   }
 }
-
-
-
-

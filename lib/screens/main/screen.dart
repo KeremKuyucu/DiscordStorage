@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:DiscordStorage/services/analytics_service.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:theme_mode_builder/theme_mode_builder.dart';
 import 'package:DiscordStorage/services/bottom_bar_service.dart';
 import 'package:DiscordStorage/screens/settings/screen.dart';
@@ -13,11 +14,12 @@ import 'package:DiscordStorage/services/file_spliter.dart';
 import 'package:DiscordStorage/services/file_merger.dart';
 import 'package:DiscordStorage/services/discord_service.dart';
 import 'package:DiscordStorage/services/path_service.dart';
-import 'package:DiscordStorage/services/url_options.dart';
 import 'package:DiscordStorage/services/logger_service.dart';
 import 'package:DiscordStorage/services/localization_service.dart';
 import 'package:DiscordStorage/services/developer_info.dart';
 import 'package:DiscordStorage/services/update_checker_service.dart';
+import 'package:DiscordStorage/services/link_generator.dart';
+import 'package:DiscordStorage/services/analytics_service.dart';
 
 class DiscordStorageLobi extends StatefulWidget {
   @override
@@ -27,13 +29,12 @@ class DiscordStorageLobi extends StatefulWidget {
 class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
   List<String> currentPath = [];
   late final Filespliter filespliter = Filespliter();
-  late final FileSystemService fileSystemService = FileSystemService();
+  final FileSystemService fileSystemService = FileSystemService();
   late final DiscordService discordService = DiscordService();
   late final FileDownloader fileDownloader = FileDownloader();
   late final PathHelper pathHelper = PathHelper();
   late final FileMerger fileMerger = FileMerger();
-
-  final urlOptions = UrlOptions();
+  late final LinkGenerator _linkGenerator = LinkGenerator();
   @override
   void initState() {
     super.initState();
@@ -45,21 +46,29 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
     if (!mounted) return;
     setState(() {});
 
-    UpdateChecker( context: context,  repoOwner: 'KeremKuyucu',  repoName: 'DiscordStorage', ).checkForUpdate();
+    UpdateChecker(
+      context: context,
+      repoOwner: 'KeremKuyucu',
+      repoName: 'DiscordStorage',
+    ).checkForUpdate();
 
     if (SettingsService.isDarkMode) {
       ThemeModeBuilderConfig.setDark();
     } else {
       ThemeModeBuilderConfig.setLight();
     }
-    if (SettingsService.token.isEmpty){
+    if (SettingsService.token.isEmpty) {
       selectedIndex = 1;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => SettingsPage()),
       );
     }
-    AnalyticsService.sendEventOnce( appId: 'discordstorage',  userId: SettingsService.storageChannelId, eventEndpoint: "/app/start");
+    AnalyticsService.sendEventOnce(
+      appId: 'discordstorage',
+      userId: SettingsService.storageChannelId,
+      eventEndpoint: "/app/start",
+    );
   }
 
   // ----------------- Buton Fonksiyonları -----------------
@@ -76,12 +85,14 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
     String folderName = '';
     await showDialog(
       context: context,
-      builder: (context) =>
-          AlertDialog(
+      builder:
+          (context) => AlertDialog(
             title: Text(Language.get('createNewFolder')),
             content: TextField(
               autofocus: true,
-              decoration: InputDecoration(hintText: Language.get('folderNameHint')),
+              decoration: InputDecoration(
+                hintText: Language.get('folderNameHint'),
+              ),
               onChanged: (value) {
                 folderName = value;
               },
@@ -94,11 +105,11 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
               ),
               TextButton(
                 onPressed: () {
-                  if (folderName
-                      .trim()
-                      .isNotEmpty) {
+                  if (folderName.trim().isNotEmpty) {
                     fileSystemService.createFolder(
-                        currentPath, folderName.trim());
+                      currentPath,
+                      folderName.trim(),
+                    );
                     fileSystemService.save();
                     setState(() {});
                   }
@@ -161,38 +172,184 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
     }
   }
 
-  Future<void> _deleteItem(String name, {required String channelId, bool deleteFromDiscord = false}) async {
-    fileSystemService.deleteItem(currentPath, name);
-    if (deleteFromDiscord) {
-      await discordService.deleteDiscordChannel(channelId);
-    }
-    fileSystemService.save();
-    setState(() {});
+  void _showDeleteConfirmationDialog(
+    String name,
+    bool isFolder,
+    String channelId,
+  ) {
+    bool deleteFromDiscord = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('$name ${Language.get('deleteFileConfirmation')}'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(Language.get('permanentlyDelete')),
+                  SizedBox(height: 16),
+                  if (!isFolder)
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: deleteFromDiscord,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              deleteFromDiscord = value ?? false;
+                            });
+                          },
+                        ),
+                        Expanded(
+                          child: Text(Language.get('deleteFromDiscord')),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(Language.get('cancel')),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    fileSystemService.deleteItem(currentPath, name);
+                    if (deleteFromDiscord) {
+                      await discordService.deleteDiscordChannel(channelId);
+                    }
+                    fileSystemService.save();
+                    setState(() {});
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  child: Text(Language.get('deleteConfirmation')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showRenameDialog(String oldName, bool isFolder, String channelId) {
+    final controller = TextEditingController(text: oldName);
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text(Language.get('rename')),
+            content: TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                labelText: Language.get('newNameLabel'),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(Language.get('cancel')),
+              ),
+              TextButton(
+                onPressed: () {
+                  final newName = controller.text.trim();
+                  if (newName.isNotEmpty && newName != oldName) {
+                    fileSystemService.renameItem(currentPath, oldName, newName);
+                    fileSystemService.save();
+                    if (!isFolder) {
+                      discordService.renameChannel(
+                        channelId: channelId,
+                        newName: newName,
+                      );
+                    }
+                    setState(() {});
+                  }
+                  Navigator.of(context).pop();
+                },
+                child: Text(Language.get('save')),
+              ),
+            ],
+          ),
+    );
   }
 
   Future<void> _shareFile(String fileName, String channelId) async {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$fileName ${Language.get('shareFileDownloading')}')),
+      SnackBar(
+        content: Text('$fileName ${Language.get('shareFileDownloading')}'),
+      ),
     );
-    final messages = await discordService.getMessages(channelId, 1);
 
+    final messages = await discordService.getMessages(channelId, 1);
     final lastMessageContent = messages.first;
     final Map<String, dynamic> data = jsonDecode(lastMessageContent);
 
     final messageId = data['messageId'];
     final fileNameFromMessage = data['fileName'] + 'temp.txt';
-    final filePath = await pathHelper.getDownloadsDirectoryPath()+ fileNameFromMessage;
+    final filePath =
+        await pathHelper.getDownloadsDirectoryPath() + fileNameFromMessage;
     final channelIdFromMessage = data['channelId'];
 
-    final url = await discordService.getFileUrl(channelIdFromMessage, messageId);
-    await fileDownloader.fileDownload(url,filePath);
-    await urlOptions.share(filePath);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$fileName ${Language.get('shareFileDownloaded')}')),
+    final url = await discordService.getFileUrl(
+      channelIdFromMessage,
+      messageId,
     );
+    await fileDownloader.fileDownload(url, filePath);
+    final shareUrl = await _linkGenerator.generateShareLinkFromFile(filePath);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$fileName ${Language.get('shareFileUploaded')}')),
+    );
+
     final linkFile = File(filePath);
     if (await linkFile.exists()) {
       await linkFile.delete();
+    }
+
+    // İşlem bittikten sonra URL gösteren ve butonlar olan dialog
+    if (shareUrl != null) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text(Language.get('shareFileUploaded')),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SelectableText(shareUrl),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        await Share.share(shareUrl);
+                      },
+                      icon: const Icon(Icons.share),
+                      label: Text(Language.get('share')),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: shareUrl));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(Language.get('copiedToClipboard')),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.copy),
+                      label: Text(Language.get('copyUrl')),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      );
     }
   }
 
@@ -223,17 +380,29 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
 
     if (messageId == null || messageId.isEmpty) return;
 
-    final filePath = await urlOptions.fetchContentAndSaveFile(messageId);
-    if (filePath != null) {
+    try {
+      final filePath = await fileDownloader.sharedFileDownload(messageId);
+
+      if (filePath == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(Language.get('fileCreationFailed'))),
+        );
+        return;
+      }
       await fileMerger.mergeFiles(filePath, true);
-    } else {
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(Language.get('sharedFileDownloaded'))),
+      );
+    } catch (e, stack) {
+      Logger.error('Error: $e\n$stack');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(Language.get('fileCreationFailed'))),
       );
     }
   }
 
-  void _downloadFile(String fileName,String channelId) async {
+  void _downloadFile(String fileName, String channelId) async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$fileName ${Language.get('downloadingFile')}')),
     );
@@ -244,11 +413,15 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
 
     final messageId = data['messageId'];
     final fileNameFromMessage = data['fileName'] + 'temp.txt';
-    final filePath = await pathHelper.getDownloadsDirectoryPath()+ fileNameFromMessage;
+    final filePath =
+        await pathHelper.getDownloadsDirectoryPath() + fileNameFromMessage;
     final channelIdFromMessage = data['channelId'];
 
-    final url = await discordService.getFileUrl(channelIdFromMessage, messageId);
-    await fileDownloader.fileDownload(url,filePath);
+    final url = await discordService.getFileUrl(
+      channelIdFromMessage,
+      messageId,
+    );
+    await fileDownloader.fileDownload(url, filePath);
 
     await fileMerger.mergeFiles(filePath, false);
 
@@ -257,9 +430,9 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
       await file.delete();
       Logger.info('$fileNameFromMessage deleted');
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(Language.get('downloadComplete'))),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(Language.get('downloadComplete'))));
   }
 
   Future<void> _pickAndStartUpload() async {
@@ -273,101 +446,10 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
         await linkFile.delete();
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Language.get('fileNotSelected'))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(Language.get('fileNotSelected'))));
     }
-  }
-
-  void _showDeleteConfirmationDialog(String name, bool isFolder, String channelId) {
-    bool deleteFromDiscord = false;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text('$name ${Language.get('deleteFileConfirmation')}'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(Language.get('permanentlyDelete')),
-                  SizedBox(height: 16),
-                  if (!isFolder)
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: deleteFromDiscord,
-                          onChanged: (bool? value) {
-                            setState(() {
-                              deleteFromDiscord = value ?? false;
-                            });
-                          },
-                        ),
-                        Expanded(child: Text(Language.get('deleteFromDiscord'))),
-                      ],
-                    ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(Language.get('cancel')),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    await _deleteItem(
-                      name,
-                      channelId: channelId,
-                      deleteFromDiscord: deleteFromDiscord,
-                    );
-                    if (context.mounted) Navigator.pop(context);
-                  },
-                  child: Text(Language.get('deleteConfirmation')),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showRenameDialog(String oldName, bool isFolder, String channelId) {
-    final controller = TextEditingController(text: oldName);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(Language.get('rename')),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(labelText: Language.get('newNameLabel')),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(Language.get('cancel')),
-          ),
-          TextButton(
-            onPressed: () {
-              final newName = controller.text.trim();
-              if (newName.isNotEmpty && newName != oldName) {
-                fileSystemService.renameItem(currentPath, oldName, newName);
-                fileSystemService.save();
-                if (!isFolder) {
-                  discordService.renameChannel(channelId: channelId, newName: newName);
-                }
-                setState(() {});
-              }
-              Navigator.of(context).pop();
-            },
-            child: Text(Language.get('save')),
-          ),
-        ],
-      ),
-    );
   }
 
   // ---------------------------------------------------------
@@ -384,7 +466,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
 
     final rawChildren = currentDir['children'] as Map<dynamic, dynamic>;
     final Map<String, Map<String, dynamic>> children = rawChildren.map(
-          (key, value) => MapEntry(
+      (key, value) => MapEntry(
         key.toString(),
         Map<String, dynamic>.from(value as Map<String, dynamic>),
       ),
@@ -398,27 +480,25 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: currentPath.isNotEmpty
-            ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: _goBack)
-            : IconButton(
-          icon: const Icon(Icons.info_outline),
-          onPressed: () {
-            DeveloperInfo.show(context);
-          },
-        ),
-        iconTheme: const IconThemeData(
-          size: 35.0,
-          color: Colors.blue,
-        ),
+        leading:
+            currentPath.isNotEmpty
+                ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: _goBack,
+                )
+                : IconButton(
+                  icon: const Icon(Icons.info_outline),
+                  onPressed: () {
+                    DeveloperInfo.show(context);
+                  },
+                ),
+        iconTheme: const IconThemeData(size: 35.0, color: Colors.blue),
         title: Text(
           currentPath.isEmpty ? 'DiscordStorage' : '${currentPath.join('/')}',
           style: const TextStyle(color: Colors.purple),
         ),
         centerTitle: true,
-        actionsIconTheme: const IconThemeData(
-          size: 35.0,
-          color: Colors.blue,
-        ),
+        actionsIconTheme: const IconThemeData(size: 35.0, color: Colors.blue),
         actions: [
           Tooltip(
             message: Language.get('uploadFileMessage'),
@@ -463,14 +543,16 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
                 fileSystemService.save();
                 setState(() {});
               },
-              builder: (context, candidateData, rejectedData) => ListTile(
-                leading: Icon(Icons.arrow_upward, color: Colors.purple),
-                title: Text('...'),
-                onTap: _goBack,
-                tileColor: candidateData.isNotEmpty
-                    ? Colors.purple.withOpacity(0.2)
-                    : null,
-              ),
+              builder:
+                  (context, candidateData, rejectedData) => ListTile(
+                    leading: Icon(Icons.arrow_upward, color: Colors.purple),
+                    title: Text('...'),
+                    onTap: _goBack,
+                    tileColor:
+                        candidateData.isNotEmpty
+                            ? Colors.purple.withOpacity(0.2)
+                            : null,
+                  ),
             );
           }
 
@@ -480,46 +562,50 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
           return DragTarget<Map<String, dynamic>>(
             onWillAccept: (_) => isFolder,
             onAccept: (data) {
-              fileSystemService.moveItem(
-                data['path'],
-                data['name'],
-                [...currentPath, name],
-              );
+              fileSystemService.moveItem(data['path'], data['name'], [
+                ...currentPath,
+                name,
+              ]);
               fileSystemService.save();
               setState(() {});
             },
-            builder: (context, candidateData, rejectedData) => Draggable<Map<String, dynamic>>(
-              data: {
-                'name': name,
-                'path': List<String>.from(currentPath),
-              },
-              feedback: Material(
-                color: Colors.transparent,
-                child: Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.deepPurple.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6)],
+            builder:
+                (
+                  context,
+                  candidateData,
+                  rejectedData,
+                ) => Draggable<Map<String, dynamic>>(
+                  data: {'name': name, 'path': List<String>.from(currentPath)},
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.deepPurple.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black26, blurRadius: 6),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isFolder ? Icons.folder : Icons.insert_drive_file,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 8),
+                          Text(name, style: TextStyle(color: Colors.white)),
+                        ],
+                      ),
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                          isFolder ? Icons.folder : Icons.insert_drive_file,
-                          color: Colors.white),
-                      SizedBox(width: 8),
-                      Text(name, style: TextStyle(color: Colors.white)),
-                    ],
+                  childWhenDragging: Opacity(
+                    opacity: 0.5,
+                    child: _buildListTile(name, isFolder),
                   ),
+                  child: _buildListTile(name, isFolder),
                 ),
-              ),
-              childWhenDragging: Opacity(
-                opacity: 0.5,
-                child: _buildListTile(name, isFolder),
-              ),
-              child: _buildListTile(name, isFolder),
-            ),
           );
         },
       ),
@@ -583,58 +669,56 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
                   break;
               }
             },
-            itemBuilder: (context) => <PopupMenuEntry<String>>[
-              PopupMenuItem<String>(
-                value: 'up',
-                child: ListTile(
-                  leading: Icon(Icons.arrow_upward, color: Colors.blue),
-                  title: Text(Language.get('moveUp')),
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'down',
-                child: ListTile(
-                  leading: Icon(Icons.arrow_downward, color: Colors.blue),
-                  title: Text(Language.get('moveDown')),
-                ),
-              ),
-              if (!isFolder)
-                PopupMenuItem<String>(
-                  value: 'download',
-                  child: ListTile(
-                    leading: Icon(Icons.download, color: Colors.green),
-                    title: Text(Language.get('download')),
+            itemBuilder:
+                (context) => <PopupMenuEntry<String>>[
+                  PopupMenuItem<String>(
+                    value: 'up',
+                    child: ListTile(
+                      leading: Icon(Icons.arrow_upward, color: Colors.blue),
+                      title: Text(Language.get('moveUp')),
+                    ),
                   ),
-                ),
-              if (!isFolder)
-                PopupMenuItem<String>(
-                  value: 'share',
-                  child: ListTile(
-                    leading: Icon(Icons.share, color: Colors.deepPurple),
-                    title: Text(Language.get('share')),
+                  PopupMenuItem<String>(
+                    value: 'down',
+                    child: ListTile(
+                      leading: Icon(Icons.arrow_downward, color: Colors.blue),
+                      title: Text(Language.get('moveDown')),
+                    ),
                   ),
-                ),
-              PopupMenuItem<String>(
-                value: 'rename',
-                child: ListTile(
-                  leading: Icon(Icons.edit, color: Colors.orange),
-                  title: Text(Language.get('rename')),
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'delete',
-                child: ListTile(
-                  leading: Icon(Icons.delete, color: Colors.red),
-                  title: Text(Language.get('delete')),
-                ),
-              ),
-            ],
+                  if (!isFolder)
+                    PopupMenuItem<String>(
+                      value: 'download',
+                      child: ListTile(
+                        leading: Icon(Icons.download, color: Colors.green),
+                        title: Text(Language.get('download')),
+                      ),
+                    ),
+                  if (!isFolder)
+                    PopupMenuItem<String>(
+                      value: 'share',
+                      child: ListTile(
+                        leading: Icon(Icons.share, color: Colors.deepPurple),
+                        title: Text(Language.get('share')),
+                      ),
+                    ),
+                  PopupMenuItem<String>(
+                    value: 'rename',
+                    child: ListTile(
+                      leading: Icon(Icons.edit, color: Colors.orange),
+                      title: Text(Language.get('rename')),
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'delete',
+                    child: ListTile(
+                      leading: Icon(Icons.delete, color: Colors.red),
+                      title: Text(Language.get('delete')),
+                    ),
+                  ),
+                ],
           ),
         ],
       ),
     );
   }
 }
-
-
-

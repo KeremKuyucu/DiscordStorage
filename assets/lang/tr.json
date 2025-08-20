@@ -98,5 +98,7 @@
 
   "enterFileId": "Dosya Kimliği Girin",
   "messageId": "Mesaj Kimliği",
-  "fileCreationFailed": "Dosya oluşturulamadı veya veriler alınamadı"
+  "fileCreationFailed": "Dosya oluşturulamadı veya veriler alınamadı",
+  "copiedToClipboard": "Panoya kopyalandı",
+  "copyUrl": "URL'yi kopyala"
 }

@@ -9,12 +9,22 @@ import 'package:DiscordStorage/services/logger_service.dart';
 import 'package:http_parser/http_parser.dart';
 
 bool debugPrint = false;
+
 class FileUploader {
   final PathHelper pathHelper = PathHelper();
   JsonFunctions jsonFunctions = JsonFunctions();
 
-  Future<void> fileUpload(String webhookUrl, String filePath, int partNo, String message, int delete, String linklerDosyasi) async {
-    Logger.info('Uploading file: $filePath, Webhook: $webhookUrl, Part: $partNo');
+  Future<void> fileUpload(
+    String webhookUrl,
+    String filePath,
+    int partNo,
+    String message,
+    int delete,
+    String linklerDosyasi,
+  ) async {
+    Logger.info(
+      'Uploading file: $filePath, Webhook: $webhookUrl, Part: $partNo',
+    );
 
     try {
       var request = http.MultipartRequest('POST', Uri.parse(webhookUrl));
@@ -36,7 +46,7 @@ class FileUploader {
           }
         }
 
-        if(debugPrint) {
+        if (debugPrint) {
           Logger.info('Webhook response: $responseData');
         }
 
@@ -61,18 +71,19 @@ class FileUploader {
             SettingsService.messageId = messageId2;
           }
         } else {
-          Logger.error('messageId not found in response. Response: $responseData');
+          Logger.error(
+            'messageId not found in response. Response: $responseData',
+          );
         }
-
       } else {
         Logger.error('File upload failed. Status code: ${response.statusCode}');
         Logger.error('Response: $responseData');
       }
-
     } catch (e) {
       Logger.error('Error during fileUpload: $e');
     }
   }
+
   Future<void> uploadTextAsFileToDiscord({
     required String message,
     required String channelId,
@@ -82,25 +93,31 @@ class FileUploader {
       final tempFile = File('${tempDir.path}/filesystem.txt');
       await tempFile.writeAsString(message);
 
-      final uri = Uri.parse('https://discord.com/api/v10/channels/$channelId/messages');
+      final uri = Uri.parse(
+        'https://discord.com/api/v10/channels/$channelId/messages',
+      );
 
-      final request = http.MultipartRequest('POST', uri)
-        ..headers['Authorization'] = 'Bot ${SettingsService.token}' // global token variable
-        ..fields['content'] = ''
-        ..files.add(
-          await http.MultipartFile.fromPath(
-            'files[0]',
-            tempFile.path,
-            // contentType parameter removed
-          ),
-        );
+      final request =
+          http.MultipartRequest('POST', uri)
+            ..headers['Authorization'] =
+                'Bot ${SettingsService.token}' // global token variable
+            ..fields['content'] = ''
+            ..files.add(
+              await http.MultipartFile.fromPath(
+                'files[0]',
+                tempFile.path,
+                // contentType parameter removed
+              ),
+            );
 
       final response = await request.send();
       final responseBody = await response.stream.bytesToString();
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        Logger.info('Message successfully uploaded as a file: ${tempFile.path}');
-        if(debugPrint){
+        Logger.info(
+          'Message successfully uploaded as a file: ${tempFile.path}',
+        );
+        if (debugPrint) {
           Logger.info('Response: $responseBody');
         }
       } else {
@@ -113,6 +130,7 @@ class FileUploader {
       Logger.error('Error during upload: $e');
     }
   }
+
   Future<String> uploadFileFromBytes({
     required Uint8List bytes,
     required String fileName,
@@ -151,7 +169,3 @@ class FileUploader {
     }
   }
 }
-
-
-
-

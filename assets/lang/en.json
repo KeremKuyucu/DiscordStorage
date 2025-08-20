@@ -22,7 +22,8 @@
   "newNameLabel": "New name",
   "deleteConfirmation": "Delete",
   "permanentlyDelete": "The file will be permanently deleted.",
-  "deleteFileConfirmation": "Do you want to delete $name?",
+  "deleteFromDiscord": "Delete from Discord",
+  "deleteFileConfirmation": "Do you want to delete this file?",
   "shareFileDownloading": "File creation",
   "shareFileUploaded": "Share File has been created. Usage period is a few days...",
   "fileNotSelected": "No file selected",
@@ -95,5 +96,7 @@
 
   "enterFileId": "Enter File ID",
   "messageId": "Message ID",
-  "fileCreationFailed": "File could not be created or data not received"
+  "fileCreationFailed": "File could not be created or data not received",
+  "copiedToClipboard": "Copied to clipboard",
+  "copyUrl": "Copy URL"
 }
