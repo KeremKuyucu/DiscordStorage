@@ -1,112 +1,52 @@
-# DiscordStorage
+🧠 What is DiscordStorage?
 
-> 📦 Use Discord as your own personal cloud storage  
-> ✨ Cross-platform app with Flutter — Android & Windows supported
+DiscordStorage is an experimental, cross-platform application built with Flutter that allows files to be stored and retrieved using Discord channels as a backend.
 
-<p align="left">
-  <img src="https://img.shields.io/github/downloads/keremkuyucu/DiscordStorage/total?logo=github&style=for-the-badge&color=blue&label=Total%20Downloads"/>
-  </p>
+Files are automatically split into chunks, uploaded as message attachments, and later reassembled on download.
+The system tracks files using Discord message IDs and verifies integrity using SHA-256 checksums.
 
-## ✅ Completed Features
-<img align="right" width="auto" height="300" src="assets/logo.png">
-<br clear="left"/>
+The application runs on Android and Windows from a single codebase and focuses on reliability, structure, and data consistency rather than user-scale cloud features.
 
-- [x] 📁 Folder structure support & auto-sync
-- [x] 📦 File chunking (10MB max size per part)
-- [x] 🔄 File reassembly & restoration
-- [x] 🛡 SHA-256 based file integrity verification
-- [x] 🧪 `debugLog` support for error tracing
-- [x] 🖥️ Flutter-based clean UI (mobile & desktop)
-- [x] 🔍 Auto update check system
 
 ---
 
-## 🧩 Planned Features (v1.0 Roadmap)
+🎯 Why was this project built?
 
-- [ ] 🔧 Fix 403 errors during file downloads by increasing timeout and improving retry logic
-- [ ] 🔄 Full auto-sync for all files
-- [x] 🔗 File sharing via unique private links
-- [ ] 🔐 File encryption (pre-upload)
-- [ ] ☁️ External backup support (Google Drive, IPFS etc.)
-- [ ] 📜 Advanced logging & versioning
-- [ ] 🕶 Private / hidden folders (locked or passworded)
-- [ ] 📂 In-app file previews (PDF, image, text)
-- [ ] 📲 Mobile background sync support
-- [ ] 🖥️ Pc background sync CLI support
-- [ ] 🌐 Web version
+DiscordStorage was created mainly as a technical experiment and learning project.
 
----
+The idea was not to build a Google Drive alternative, but to explore what can be done when a platform not designed for storage is treated like one.
 
-## 🖥 Installation
+This project exists because:
 
-### Windows
+I wanted to see how far Discord’s infrastructure could be pushed
 
-1. Download from [Releases](https://github.com/KeremKuyucu/DiscordStorage/releases)
-2. Run installer and follow steps
-3. Launch the app and configure
+I wanted to design a custom file abstraction layer
 
-### Android
+I wanted hands-on experience with rate limits, retries, and large file transfers
 
-1. Get the latest `.apk` from [Releases](https://github.com/KeremKuyucu/DiscordStorage/releases)
-2. Install & allow required permissions
-3. Open the app and configure
+I wanted a real project that exposes real-world edge cases
 
-### Developer Setup
+I simply enjoy building systems that are unusual but technically possible
 
-```bash
-git clone https://github.com/KeremKuyucu/DiscordStorageNew.git
-cd DiscordStorageNew
-flutter pub get
-flutter run
-````
+
+In short:
+
+> This project was built because I can build it — and because it’s interesting to do so.
+
+
+
 
 ---
 
-## ⚙️ Setup Instructions
+🧩 Project Scope
 
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications) and create a bot
-2. Copy the **Bot Token**
-3. In-app: Go to **Settings** > Enter:
+DiscordStorage is intentionally kept focused:
 
-   * Bot Token
-   * Server ID
-   * Category ID
-4. Save and you're ready
+No external cloud sync
 
----
+No dependency on third-party storage services
 
-## ☁️ How to Use
+No attempt to compete with commercial cloud platforms
 
-### Upload a File
 
-* Click **Upload File**
-* Choose your file
-* App will auto-split & upload
-
-### Download a File
-
-* Tap a listed file
-* Click **Download**
-* File is auto-restored and saved to Downloads
-
----
-
-## 🔐 File Integrity
-
-> Uses **SHA-256** checksums to verify both uploaded and downloaded files.
-
----
-
-## ⚠️ Warnings
-
-> ℹ️ Read these carefully to avoid issues
-
-* ❌ Do **not** manually message in upload channel — it may corrupt the file structure
-* ✅ Ensure bot has sufficient permissions in the target category
-* 🔒 Prefer giving full permissions in a private category
-
----
-
-## 👤 Author
-
-> Developed by [**Kerem Kuyucu**](https://github.com/KeremKuyucu)
+It is a self-contained proof of concept meant for experimentation, learning, and showcasing system design skills.
