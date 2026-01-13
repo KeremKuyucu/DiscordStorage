@@ -1,37 +1,37 @@
 🧠 What is DiscordStorage?
 
-DiscordStorage is an experimental, cross-platform application built with Flutter that allows files to be stored and retrieved using Discord channels as a backend.
+DiscordStorage is an experimental, cross-platform application built with Flutter that enables the storage and retrieval of files using Discord channels as a backend.
 
-Files are automatically split into chunks, uploaded as message attachments, and later reassembled on download.
-The system tracks files using Discord message IDs and verifies integrity using SHA-256 checksums.
+Files are automatically split into chunks, uploaded as message attachments, and reassembled when downloaded.
+The system tracks files using Discord message IDs and verifies their integrity using SHA-256 checksums.
 
-The application runs on Android and Windows from a single codebase and focuses on reliability, structure, and data consistency rather than user-scale cloud features.
+The application runs on Android and Windows from a single codebase and focuses on reliability, structure, and data consistency rather than cloud features at the user scale.
 
 
 ---
 
-🎯 Why was this project built?
+🎯 Why was this project created?
 
-DiscordStorage was created mainly as a technical experiment and learning project.
+DiscordStorage was primarily created as a technical experiment and learning project.
 
-The idea was not to build a Google Drive alternative, but to explore what can be done when a platform not designed for storage is treated like one.
+The goal here was not to create an alternative system to Google Drive, but to explore what could be done when a platform not designed for storage is used for storage purposes.
 
-This project exists because:
+This project was created for the following reasons:
 
-I wanted to see how far Discord’s infrastructure could be pushed
+I wanted to see how much Discord's infrastructure could be pushed.
 
-I wanted to design a custom file abstraction layer
+I wanted to design a custom file abstraction layer.
 
-I wanted hands-on experience with rate limits, retries, and large file transfers
+I wanted to gain practical experience with rate limits, retries, and large file transfers.
 
-I wanted a real project that exposes real-world edge cases
+I wanted a real project that would bring out real-world edge cases.
 
-I simply enjoy building systems that are unusual but technically possible
+I enjoy creating unusual but technically feasible systems.
 
 
 In short:
 
-> This project was built because I can build it — and because it’s interesting to do so.
+> This project was created because I could create it and because it was interesting to do so.
 
 
 
@@ -42,11 +42,15 @@ In short:
 
 DiscordStorage is intentionally kept focused:
 
-No external cloud sync
+There is no external cloud synchronization.
 
-No dependency on third-party storage services
+There is no dependency on third-party storage services.
 
-No attempt to compete with commercial cloud platforms
+There is no attempt to compete with commercial cloud platforms.
+
+The sharing service is no longer operational; the server has been shut down.
+https://github.com/KeremKuyucu/discordStorage-share
+project link
 
 
-It is a self-contained proof of concept meant for experimentation, learning, and showcasing system design skills.
+Translated with DeepL.com (free version)
