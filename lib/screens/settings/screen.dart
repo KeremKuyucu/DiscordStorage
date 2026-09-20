@@ -1,12 +1,12 @@
-import 'package:DiscordStorage/screens/logs/screen.dart';
+import 'package:discord_storage/screens/logs/screen.dart';
 import 'package:flutter/material.dart';
 import 'package:theme_mode_builder/theme_mode_builder.dart';
-import 'package:DiscordStorage/screens/settings/service.dart';
-import 'package:DiscordStorage/services/bottom_bar_service.dart';
-import 'package:DiscordStorage/services/discord_service.dart';
-import 'package:DiscordStorage/services/file_system_service.dart';
-import 'package:DiscordStorage/services/logger_service.dart';
-import 'package:DiscordStorage/services/localization_service.dart';
+import 'package:discord_storage/screens/settings/service.dart';
+import 'package:discord_storage/services/bottom_bar_service.dart';
+import 'package:discord_storage/services/discord_service.dart';
+import 'package:discord_storage/services/file_system_service.dart';
+import 'package:discord_storage/services/logger_service.dart';
+import 'package:discord_storage/services/localization_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -57,6 +57,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     await fileSystemService.save();
 
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(Language.get('filesLoaded'))),
     );

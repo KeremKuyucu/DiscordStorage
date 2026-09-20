@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
 
@@ -102,13 +103,43 @@ class Logger {
     if (_isInitialized) return;
 
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      _logFile = File('${directory.path}/$_logFileName');
+      Directory logDir;
+      if (Platform.isWindows) {
+        // Inno Setup'ın uygulamayı kurduğu yer: %APPDATA%\DiscordStorage\logs
+        final appData = Platform.environment['APPDATA'];
+        if (appData != null && appData.isNotEmpty) {
+          logDir = Directory('$appData\\DiscordStorage\\logs');
+        } else {
+          final exeDir = File(Platform.resolvedExecutable).parent;
+          logDir = Directory('${exeDir.path}\\logs');
+        }
+      } else {
+        logDir = await getApplicationSupportDirectory();
+      }
+
+      if (!await logDir.exists()) {
+        await logDir.create(recursive: true);
+      }
+
+      _logFile = File(p.join(logDir.path, _logFileName));
 
       // Create file if it doesn't exist
       if (!await _logFile!.exists()) {
         await _logFile!.create(recursive: true);
       }
+
+      // Belgeler (Documents) klasöründeki eski log dosyasını temizle
+      try {
+        if (Platform.isWindows) {
+          final userProfile = Platform.environment['USERPROFILE'];
+          if (userProfile != null) {
+            final oldDocLog = File('$userProfile\\Documents\\$_logFileName');
+            if (await oldDocLog.exists()) {
+              await oldDocLog.delete();
+            }
+          }
+        }
+      } catch (_) {}
 
       // Check file size and rotate if necessary
       await _rotateLogIfNeeded();
@@ -170,16 +201,21 @@ class Logger {
     return 'unknown';
   }
 
-  // Write log entry to file
-  Future<void> _writeLog(LogEntry entry) async {
-    if (_logFile == null) return;
+  // Async queue to ensure sequential and atomic log writes without file collision
+  Future<void> _writeQueue = Future.value();
 
-    try {
-      final jsonLine = '${jsonEncode(entry.toJson())}\n';
-      await _logFile!.writeAsString(jsonLine, mode: FileMode.append);
-    } catch (e) {
-      debugPrint('Error writing log: $e');
-    }
+  // Write log entry to file
+  Future<void> _writeLog(LogEntry entry) {
+    return _writeQueue = _writeQueue.then((_) async {
+      if (_logFile == null) return;
+
+      try {
+        final jsonLine = '${jsonEncode(entry.toJson())}\n';
+        await _logFile!.writeAsString(jsonLine, mode: FileMode.append, flush: true);
+      } catch (e) {
+        debugPrint('Error writing log: $e');
+      }
+    });
   }
 
   // Public logging methods
@@ -275,18 +311,25 @@ class Logger {
       List<LogEntry> entries = [];
 
       for (final line in lines) {
+        final trimmed = line.trim();
+        if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
+          continue; // Kırpılmış veya bozuk satır parçalarını atla
+        }
+
         try {
-          final json = jsonDecode(line);
-          final entry = LogEntry.fromJson(json);
+          final json = jsonDecode(trimmed);
+          if (json is Map<String, dynamic>) {
+            final entry = LogEntry.fromJson(json);
 
-          // Apply filters
-          if (filterLevel != null && entry.level != filterLevel) continue;
-          if (fromDate != null && entry.timestamp.isBefore(fromDate)) continue;
-          if (toDate != null && entry.timestamp.isAfter(toDate)) continue;
+            // Apply filters
+            if (filterLevel != null && entry.level != filterLevel) continue;
+            if (fromDate != null && entry.timestamp.isBefore(fromDate)) continue;
+            if (toDate != null && entry.timestamp.isAfter(toDate)) continue;
 
-          entries.add(entry);
-        } catch (e) {
-          debugPrint('Error parsing log entry: $e');
+            entries.add(entry);
+          }
+        } catch (_) {
+          // Format bozukluklarında konsola hata basmadan devam et
         }
       }
 
@@ -339,6 +382,14 @@ class Logger {
     } catch (e) {
       return 0;
     }
+  }
+
+  // Get log file path
+  static Future<String?> getLogFilePath() async {
+    if (instance._logFile == null) {
+      await instance._init();
+    }
+    return instance._logFile?.path;
   }
 
   // Get log statistics

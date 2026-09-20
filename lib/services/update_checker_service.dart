@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:flutter_html/flutter_html.dart';
-import 'package:markdown/markdown.dart' as md;
 import 'package:easy_url_launcher/easy_url_launcher.dart';
-import 'package:DiscordStorage/services/logger_service.dart';
-
+import 'package:discord_storage/services/logger_service.dart';
 
 class UpdateChecker {
   final BuildContext context;
@@ -45,12 +42,11 @@ class UpdateChecker {
           Logger.info('Remote version: $remoteVersion');
 
           String updateNotes = latestRelease['body'] ?? 'No release notes available';
-          String html = md.markdownToHtml(updateNotes);
           String releasePageUrl = 'https://github.com/$repoOwner/$repoName/releases/latest';
 
           if (remoteVersion != localVersion) {
             Logger.info('New version found: $remoteVersion');
-            _showUpdateDialog(localVersion, remoteVersion, html, releasePageUrl);
+            _showUpdateDialog(localVersion, remoteVersion, updateNotes, releasePageUrl);
           } else {
             Logger.info('You are already on the latest version.');
           }
@@ -65,7 +61,7 @@ class UpdateChecker {
     }
   }
 
-  void _showUpdateDialog(String localVersion, String remoteVersion, String html, String releaseUrl) {
+  void _showUpdateDialog(String localVersion, String remoteVersion, String updateNotes, String releaseUrl) {
     Logger.info('Showing update dialog.');
     showDialog(
       context: context,
@@ -85,7 +81,10 @@ class UpdateChecker {
                   const SizedBox(height: 10),
                   const Text('Release Notes:'),
                   const SizedBox(height: 10),
-                  Html(data: html),
+                  SelectableText(
+                    updateNotes,
+                    style: const TextStyle(fontSize: 13, height: 1.4),
+                  ),
                 ],
               ),
             ),
@@ -98,13 +97,15 @@ class UpdateChecker {
                 EasyLauncher.url(url: releaseUrl);
               },
             ),
+            TextButton(
+              child: const Text('Dismiss'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
           ],
         );
       },
     );
   }
 }
-
-
-
-

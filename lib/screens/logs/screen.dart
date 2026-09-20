@@ -1,8 +1,9 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-// import 'package:share_plus/share_plus.dart'; // Optional, comment out if not available
-import 'package:DiscordStorage/services/logger_service.dart';
-import 'package:DiscordStorage/services/localization_service.dart';
+import 'package:discord_storage/services/logger_service.dart';
+import 'package:discord_storage/services/localization_service.dart';
 
 class LogsPage extends StatefulWidget {
   const LogsPage({super.key});
@@ -11,218 +12,369 @@ class LogsPage extends StatefulWidget {
   State<LogsPage> createState() => _LogsPageState();
 }
 
-class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
-  List<LogEntry> logs = [];
-  List<LogEntry> filteredLogs = [];
-  bool isLoading = true;
-  LogLevel? selectedLevel;
-  DateTime? fromDate;
-  DateTime? toDate;
-  String searchQuery = '';
-  bool isAutoRefresh = false;
-
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
+class _LogsPageState extends State<LogsPage> with SingleTickerProviderStateMixin {
+  List<LogEntry> _allLogs = [];
+  List<LogEntry> _filteredLogs = [];
+  bool _isLoading = true;
+  LogLevel? _selectedLevel;
+  String _searchQuery = '';
+  bool _isAutoRefresh = false;
+  bool _isCompactView = true;
+  Timer? _refreshTimer;
 
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 250),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-
     _loadLogs();
-    _animationController.forward();
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _refreshTimer?.cancel();
     _searchController.dispose();
+    _scrollController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadLogs() async {
-    Logger.info('_loadLogs called');
-    if (!mounted) return;
-
+  void _toggleAutoRefresh(bool enable) {
     setState(() {
-      isLoading = true;
+      _isAutoRefresh = enable;
     });
+    _refreshTimer?.cancel();
+    if (enable) {
+      _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+        _loadLogs(isSilent: true);
+      });
+      _showToast('Canlı log akışı başlatıldı (3 sn)', isSuccess: true);
+    } else {
+      _showToast('Canlı akış duraklatıldı');
+    }
+  }
+
+  Future<void> _loadLogs({bool isSilent = false}) async {
+    if (!isSilent) {
+      setState(() => _isLoading = true);
+    }
 
     try {
-      Logger.info('Attempting to read logs...');
-
-      // Try the new method first
-      List<LogEntry> loadedLogs = [];
-      try {
-        loadedLogs = await Logger.readLogs(
-          filterLevel: selectedLevel,
-          fromDate: fromDate,
-          toDate: toDate,
-          limit: 1000,
-        );
-        Logger.info('New method: Loaded ${loadedLogs.length} logs');
-      } catch (e) {
-        Logger.info('New method failed: $e, trying legacy method...');
-
-        // Fallback to legacy method
-        final legacyLogs = await Logger.readLogsAsStrings();
-        Logger.info('Legacy method: Found ${legacyLogs.length} log strings');
-
-        // Convert to LogEntry objects
-        for (final logString in legacyLogs) {
-          final entry = LogEntry.fromLegacyString(logString);
-          if (entry != null) {
-            // Apply filters
-            if (selectedLevel != null && entry.level != selectedLevel) continue;
-            loadedLogs.add(entry);
-          }
-        }
-
-        // Sort by timestamp (newest first)
-        loadedLogs.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-        // Apply limit
-        if (loadedLogs.length > 1000) {
-          loadedLogs = loadedLogs.take(1000).toList();
-        }
-
-        Logger.info('Fallback method: Processed ${loadedLogs.length} logs');
-      }
+      final loadedLogs = await Logger.readLogs(limit: 2000);
 
       if (mounted) {
         setState(() {
-          logs = loadedLogs;
-          _applySearchFilter();
-          isLoading = false;
+          _allLogs = loadedLogs;
+          _applyFilters();
+          _isLoading = false;
         });
-        Logger.info('State updated, isLoading: false, showing ${filteredLogs.length} filtered logs');
+        _animationController.forward(from: 0.0);
       }
     } catch (e) {
-      Logger.error('Complete error loading logs: $e');
       if (mounted) {
         setState(() {
-          logs = []; // Set empty list on error
-          filteredLogs = [];
-          isLoading = false;
+          _allLogs = [];
+          _filteredLogs = [];
+          _isLoading = false;
         });
-        _showErrorSnackBar('Log yükleme hatası: $e');
+        if (!isSilent) {
+          _showToast('Log yükleme hatası: $e', isError: true);
+        }
       }
     }
   }
 
-  void _applySearchFilter() {
-    if (searchQuery.isEmpty) {
-      filteredLogs = logs;
-    } else {
-      filteredLogs = logs.where((log) {
-        return log.message.toLowerCase().contains(searchQuery.toLowerCase()) ||
-            log.callerInfo.toLowerCase().contains(searchQuery.toLowerCase());
+  void _applyFilters() {
+    List<LogEntry> result = _allLogs;
+
+    if (_selectedLevel != null) {
+      result = result.where((log) => log.level == _selectedLevel).toList();
+    }
+
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      result = result.where((log) {
+        return log.message.toLowerCase().contains(q) ||
+            log.callerInfo.toLowerCase().contains(q);
       }).toList();
     }
+
+    setState(() {
+      _filteredLogs = result;
+    });
   }
 
   Future<void> _clearLogs() async {
-    try {
-      await Logger.clearLogs();
-      await _loadLogs();
-      _showSuccessSnackBar(Language.get('logsCleared'));
-    } catch (e) {
-      _showErrorSnackBar('Log temizleme hatası: $e');
-    }
-  }
-
-  Future<void> _shareLogs() async {
-    if (filteredLogs.isEmpty) return;
-
-    final content = filteredLogs
-        .map((log) => log.toFormattedString())
-        .join('\n');
-
-    try {
-      // If share_plus is not available, copy to clipboard instead
-      await Clipboard.setData(ClipboardData(text: content));
-      _showSuccessSnackBar('Loglar panoya kopyalandı');
-
-      // Uncomment below if share_plus is available
-      // await Share.share(
-      //   content,
-      //   subject: 'DiscordStorage Logs',
-      // );
-    } catch (e) {
-      _showErrorSnackBar('Log paylaşma hatası: $e');
-    }
-  }
-
-  void _copyLogToClipboard(LogEntry log) {
-    Clipboard.setData(ClipboardData(text: log.toFormattedString()));
-    _showSuccessSnackBar('Log panoya kopyalandı');
-  }
-
-  void _showLogDetails(LogEntry log) {
-    showDialog(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('${log.level.name} Log Detayı'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDetailRow('Zaman', log.timestamp.toLocal().toString()),
-              _buildDetailRow('Seviye', log.level.name),
-              _buildDetailRow('Çağıran', log.callerInfo),
-              const SizedBox(height: 12),
-              const Text('Mesaj:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: SelectableText(log.message),
-              ),
-            ],
-          ),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.red),
+            const SizedBox(width: 8),
+            Text(Language.get('clearLogs')),
+          ],
         ),
+        content: Text(Language.get('confirmClearLogs')),
         actions: [
           TextButton(
-            onPressed: () => _copyLogToClipboard(log),
-            child: const Text('Kopyala'),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(Language.get('cancel')),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(Language.get('close')),
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red.withValues(alpha: 0.15),
+              foregroundColor: Colors.red,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(Language.get('confirm')),
           ),
         ],
       ),
     );
+
+    if (confirmed == true) {
+      await Logger.clearLogs();
+      await _loadLogs();
+      _showToast(Language.get('logsCleared'), isSuccess: true);
+    }
   }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              '$label:',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+  Future<void> _copyAllLogs() async {
+    if (_filteredLogs.isEmpty) return;
+    final text = _filteredLogs.map((e) => e.toFormattedString()).join('\n');
+    await Clipboard.setData(ClipboardData(text: text));
+    _showToast('${_filteredLogs.length} log panoya kopyalandı', isSuccess: true);
+  }
+
+  Future<void> _openLogFileInNotepad() async {
+    final path = await Logger.getLogFilePath();
+    if (path == null || !File(path).existsSync()) {
+      _showToast('Log dosyası henüz oluşmamış.', isError: true);
+      return;
+    }
+
+    try {
+      if (Platform.isWindows) {
+        await Process.run('notepad.exe', [path]);
+      }
+    } catch (e) {
+      _showToast('Dosya açılamadı: $e', isError: true);
+    }
+  }
+
+  Future<void> _openLogFolderInExplorer() async {
+    final path = await Logger.getLogFilePath();
+    if (path == null) return;
+    try {
+      if (Platform.isWindows) {
+        final dir = File(path).parent;
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+        }
+        final cleanPath = dir.path.replaceAll('/', '\\');
+        await Process.run('explorer.exe', [cleanPath]);
+      }
+    } catch (e) {
+      _showToast('Klasör açılamadı: $e', isError: true);
+    }
+  }
+
+  void _copyLog(LogEntry log) {
+    Clipboard.setData(ClipboardData(text: log.toFormattedString()));
+    _showToast('Log satırı kopyalandı', isSuccess: true);
+  }
+
+  void _showLogDetails(LogEntry log) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = _getLogLevelColor(log.level);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680, maxHeight: 600),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: color.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(_getLogLevelIcon(log.level), size: 16, color: color),
+                          const SizedBox(width: 6),
+                          Text(
+                            log.level.name.toUpperCase(),
+                            style: TextStyle(
+                              color: color,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _formatFullDateTime(log.timestamp),
+                        style: TextStyle(
+                          color: isDark ? Colors.grey[400] : Colors.grey[700],
+                          fontSize: 13,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                      tooltip: Language.get('close'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Caller location
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white10 : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.code_rounded, size: 16, color: Colors.blueAccent),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Konum: ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.grey[300] : Colors.grey[700],
+                        ),
+                      ),
+                      Expanded(
+                        child: SelectableText(
+                          log.callerInfo,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontFamily: 'monospace',
+                            color: Colors.blueAccent,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Log İçeriği:',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                // Monospace message block
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0D1117) : const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isDark ? Colors.white12 : Colors.transparent,
+                      ),
+                    ),
+                    child: SingleChildScrollView(
+                      child: SelectableText(
+                        log.message,
+                        style: const TextStyle(
+                          color: Color(0xFFE2E8F0),
+                          fontFamily: 'monospace',
+                          fontSize: 13,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Footer actions
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.copy, size: 16),
+                      label: const Text('Metni Kopyala'),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: log.message));
+                        _showToast('Mesaj kopyalandı', isSuccess: true);
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.content_copy, size: 16),
+                      label: const Text('Tüm Kaydı Kopyala'),
+                      onPressed: () {
+                        _copyLog(log);
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          Expanded(child: SelectableText(value)),
-        ],
+        ),
+      ),
+    );
+  }
+
+  void _showToast(String message, {bool isSuccess = false, bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isError
+                  ? Icons.error_outline
+                  : isSuccess
+                  ? Icons.check_circle_outline
+                  : Icons.info_outline,
+              color: Colors.white,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: isError
+            ? const Color(0xFFDC2626)
+            : isSuccess
+            ? const Color(0xFF059669)
+            : const Color(0xFF334155),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -230,234 +382,369 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
   Color _getLogLevelColor(LogLevel level) {
     switch (level) {
       case LogLevel.error:
-        return Colors.red;
+        return const Color(0xFFEF4444);
       case LogLevel.warning:
-        return Colors.orange;
+        return const Color(0xFFF59E0B);
       case LogLevel.debug:
-        return Colors.blue;
+        return const Color(0xFF3B82F6);
       case LogLevel.info:
-        return Colors.green;
+        return const Color(0xFF10B981);
     }
   }
 
   IconData _getLogLevelIcon(LogLevel level) {
     switch (level) {
       case LogLevel.error:
-        return Icons.error;
+        return Icons.cancel_rounded;
       case LogLevel.warning:
-        return Icons.warning;
+        return Icons.warning_rounded;
       case LogLevel.debug:
-        return Icons.bug_report;
+        return Icons.pest_control_rounded;
       case LogLevel.info:
-        return Icons.info;
+        return Icons.check_circle_rounded;
     }
   }
 
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.green,
-      ),
-    );
+  String _formatTimeOnly(DateTime dt) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    final s = dt.second.toString().padLeft(2, '0');
+    final ms = dt.millisecond.toString().padLeft(3, '0');
+    return '$h:$m:$s.$ms';
   }
 
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.red,
-      ),
-    );
+  String _formatFullDateTime(DateTime dt) {
+    final y = dt.year;
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    return '$y-$m-$d ${_formatTimeOnly(dt)}';
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final bgColor = isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC);
+    final surfaceColor = isDark ? const Color(0xFF131B2E) : Colors.white;
+    final borderColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+
+    final errorCount = _allLogs.where((l) => l.level == LogLevel.error).length;
+    final warnCount = _allLogs.where((l) => l.level == LogLevel.warning).length;
+    final infoCount = _allLogs.where((l) => l.level == LogLevel.info).length;
+    final debugCount = _allLogs.where((l) => l.level == LogLevel.debug).length;
+
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
-        title: Text(Language.get('logs')),
-        elevation: 0,
-        actions: [
-          if (filteredLogs.isNotEmpty) ...[
-            IconButton(
-              icon: const Icon(Icons.share),
-              tooltip: 'Logları Paylaş',
-              onPressed: _shareLogs,
+        title: Row(
+          children: [
+            Icon(Icons.terminal_rounded, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 10),
+            Text(
+              Language.get('logs'),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                switch (value) {
-                  case 'clear':
-                    _showClearDialog();
-                    break;
-                  case 'refresh':
-                    _loadLogs();
-                    break;
-                  case 'export':
-                    _shareLogs();
-                    break;
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'refresh',
-                  child: Row(
-                    children: [
-                      Icon(Icons.refresh),
-                      SizedBox(width: 8),
-                      Text('Yenile'),
-                    ],
-                  ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${_filteredLogs.length} / ${_allLogs.length}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-                const PopupMenuItem(
-                  value: 'export',
-                  child: Row(
-                    children: [
-                      Icon(Icons.file_download),
-                      SizedBox(width: 8),
-                      Text('Dışa Aktar'),
-                    ],
-                  ),
+              ),
+            ),
+          ],
+        ),
+        elevation: 0,
+        backgroundColor: surfaceColor,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(height: 1, color: borderColor),
+        ),
+        actions: [
+          // Auto-refresh toggle
+          IconButton(
+            icon: Icon(
+              _isAutoRefresh ? Icons.pause_circle_filled : Icons.play_circle_fill,
+              color: _isAutoRefresh ? Colors.green : Colors.grey,
+            ),
+            tooltip: _isAutoRefresh ? 'Canlı Akışı Duraklat' : 'Canlı Akışı Başlat (3s)',
+            onPressed: () => _toggleAutoRefresh(!_isAutoRefresh),
+          ),
+          // View Mode Toggle
+          IconButton(
+            icon: Icon(_isCompactView ? Icons.view_agenda_outlined : Icons.view_headline_rounded),
+            tooltip: _isCompactView ? 'Genişletilmiş Kart Görünümü' : 'Kompakt Konsol Görünümü',
+            onPressed: () {
+              setState(() => _isCompactView = !_isCompactView);
+            },
+          ),
+          // Copy All
+          IconButton(
+            icon: const Icon(Icons.copy_all_rounded),
+            tooltip: 'Görüntülenen Logları Kopyala',
+            onPressed: _copyAllLogs,
+          ),
+          // Refresh
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Yenile',
+            onPressed: () => _loadLogs(),
+          ),
+          // Desktop Notepad / Explorer options
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded),
+            tooltip: 'Daha Fazla Seçenek',
+            onSelected: (val) {
+              switch (val) {
+                case 'notepad':
+                  _openLogFileInNotepad();
+                  break;
+                case 'explorer':
+                  _openLogFolderInExplorer();
+                  break;
+                case 'clear':
+                  _clearLogs();
+                  break;
+              }
+            },
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(
+                value: 'notepad',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_note_rounded, size: 18),
+                    SizedBox(width: 8),
+                    Text('Not Defterinde Aç (.jsonl)'),
+                  ],
                 ),
-                const PopupMenuItem(
-                  value: 'clear',
+              ),
+              const PopupMenuItem(
+                value: 'explorer',
+                child: Row(
+                  children: [
+                    Icon(Icons.folder_open_rounded, size: 18),
+                    SizedBox(width: 8),
+                    Text('Dosya Konumunu Göster'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'clear',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_sweep_rounded, color: Colors.red, size: 18),
+                    SizedBox(width: 8),
+                    Text('Tüm Logları Temizle', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Filter & Search Strip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: surfaceColor,
+              border: Border(bottom: BorderSide(color: borderColor)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    // Search Bar
+                    Expanded(
+                      child: SizedBox(
+                        height: 40,
+                        child: TextField(
+                          controller: _searchController,
+                          style: const TextStyle(fontSize: 13),
+                          decoration: InputDecoration(
+                            hintText: 'Mesaj veya dosya adında ara...',
+                            hintStyle: TextStyle(
+                              color: isDark ? Colors.grey[500] : Colors.grey[400],
+                              fontSize: 13,
+                            ),
+                            prefixIcon: const Icon(Icons.search, size: 18),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                              icon: const Icon(Icons.clear, size: 16),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _searchQuery = '';
+                                  _applyFilters();
+                                });
+                              },
+                            )
+                                : null,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                            filled: true,
+                            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          onChanged: (val) {
+                            setState(() {
+                              _searchQuery = val;
+                              _applyFilters();
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // Level filter tabs
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      Icon(Icons.delete_forever, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Temizle', style: TextStyle(color: Colors.red)),
+                      _buildLevelFilterTab(
+                        label: 'Tümü',
+                        count: _allLogs.length,
+                        isSelected: _selectedLevel == null,
+                        color: Theme.of(context).colorScheme.primary,
+                        onTap: () {
+                          setState(() => _selectedLevel = null);
+                          _applyFilters();
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _buildLevelFilterTab(
+                        label: 'Hata',
+                        count: errorCount,
+                        isSelected: _selectedLevel == LogLevel.error,
+                        color: _getLogLevelColor(LogLevel.error),
+                        onTap: () {
+                          setState(() => _selectedLevel = LogLevel.error);
+                          _applyFilters();
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _buildLevelFilterTab(
+                        label: 'Uyarı',
+                        count: warnCount,
+                        isSelected: _selectedLevel == LogLevel.warning,
+                        color: _getLogLevelColor(LogLevel.warning),
+                        onTap: () {
+                          setState(() => _selectedLevel = LogLevel.warning);
+                          _applyFilters();
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _buildLevelFilterTab(
+                        label: 'Bilgi',
+                        count: infoCount,
+                        isSelected: _selectedLevel == LogLevel.info,
+                        color: _getLogLevelColor(LogLevel.info),
+                        onTap: () {
+                          setState(() => _selectedLevel = LogLevel.info);
+                          _applyFilters();
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _buildLevelFilterTab(
+                        label: 'Debug',
+                        count: debugCount,
+                        isSelected: _selectedLevel == LogLevel.debug,
+                        color: _getLogLevelColor(LogLevel.debug),
+                        onTap: () {
+                          setState(() => _selectedLevel = LogLevel.debug);
+                          _applyFilters();
+                        },
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
-          ],
+          ),
+          // Main Logs Area
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredLogs.isEmpty
+                ? _buildEmptyState(isDark)
+                : _isCompactView
+                ? _buildTerminalView(isDark, borderColor)
+                : _buildCardView(isDark, borderColor),
+          ),
         ],
       ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Column(
+    );
+  }
+
+  Widget _buildLevelFilterTab({
+    required String label,
+    required int count,
+    required bool isSelected,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.18) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? color : Colors.transparent,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Filters and Search
             Container(
-              padding: const EdgeInsets.all(16),
+              width: 8,
+              height: 8,
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Search Bar
-                  TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Loglarda ara...',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: searchQuery.isNotEmpty
-                          ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            searchQuery = '';
-                            _applySearchFilter();
-                          });
-                        },
-                      )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        searchQuery = value;
-                        _applySearchFilter();
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  // Filters
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        FilterChip(
-                          label: Text('Tümü (${logs.length})'),
-                          selected: selectedLevel == null,
-                          onSelected: (selected) {
-                            setState(() {
-                              selectedLevel = null;
-                            });
-                            _loadLogs();
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        ...LogLevel.values.map((level) {
-                          final count = logs.where((log) => log.level == level).length;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: FilterChip(
-                              avatar: Icon(
-                                _getLogLevelIcon(level),
-                                size: 16,
-                                color: selectedLevel == level
-                                    ? Colors.white
-                                    : _getLogLevelColor(level),
-                              ),
-                              label: Text('${level.name} ($count)'),
-                              selected: selectedLevel == level,
-                              selectedColor: _getLogLevelColor(level),
-                              onSelected: (selected) {
-                                setState(() {
-                                  selectedLevel = selected ? level : null;
-                                });
-                                _loadLogs();
-                              },
-                            ),
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
-                ],
+                color: color,
+                shape: BoxShape.circle,
               ),
             ),
-            // Log List
-            Expanded(
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : filteredLogs.isEmpty
-                  ? _buildEmptyState()
-                  : RefreshIndicator(
-                onRefresh: _loadLogs,
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: filteredLogs.length,
-                  itemBuilder: (context, index) {
-                    final log = filteredLogs[index];
-                    return _buildLogCard(log, index);
-                  },
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? color : null,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: isSelected ? color.withValues(alpha: 0.25) : Colors.black12,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                count.toString(),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? color : Colors.grey,
                 ),
               ),
             ),
@@ -467,169 +754,250 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildEmptyState() {
+  // --- COMPACT TERMINAL VIEW ---
+  Widget _buildTerminalView(bool isDark, Color borderColor) {
+    return Scrollbar(
+      controller: _scrollController,
+      thumbVisibility: true,
+      child: ListView.separated(
+        controller: _scrollController,
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        itemCount: _filteredLogs.length,
+        separatorBuilder: (_, __) => Divider(
+          height: 1,
+          thickness: 1,
+          color: borderColor.withValues(alpha: 0.4),
+        ),
+        itemBuilder: (context, index) {
+          final log = _filteredLogs[index];
+          final color = _getLogLevelColor(log.level);
+
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _showLogDetails(log),
+              onLongPress: () => _copyLog(log),
+              hoverColor: color.withValues(alpha: 0.06),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Timestamp
+                    Text(
+                      _formatTimeOnly(log.timestamp),
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 11.5,
+                        color: isDark ? Colors.grey[500] : Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Level badge
+                    Container(
+                      width: 54,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.8),
+                      ),
+                      child: Text(
+                        log.level.name.toUpperCase(),
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Caller info pill
+                    if (log.callerInfo.isNotEmpty && log.callerInfo != 'unknown')
+                      Container(
+                        constraints: const BoxConstraints(maxWidth: 140),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          log.callerInfo.split('(').first.trim(),
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 10.5,
+                            color: isDark ? Colors.grey[400] : Colors.grey[700],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    const SizedBox(width: 10),
+                    // Log Message
+                    Expanded(
+                      child: Text(
+                        log.message,
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 12,
+                          height: 1.35,
+                          color: log.level == LogLevel.error
+                              ? Colors.redAccent
+                              : (isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B)),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    // Inline Copy Action
+                    IconButton(
+                      icon: const Icon(Icons.copy, size: 14),
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      tooltip: 'Kopyala',
+                      color: Colors.grey,
+                      onPressed: () => _copyLog(log),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // --- EXPANDED CARD VIEW ---
+  Widget _buildCardView(bool isDark, Color borderColor) {
+    return Scrollbar(
+      controller: _scrollController,
+      thumbVisibility: true,
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(16),
+        itemCount: _filteredLogs.length,
+        itemBuilder: (context, index) {
+          final log = _filteredLogs[index];
+          final color = _getLogLevelColor(log.level);
+          final icon = _getLogLevelIcon(log.level);
+
+          return Card(
+            elevation: 0,
+            margin: const EdgeInsets.only(bottom: 8),
+            color: isDark ? const Color(0xFF131B2E) : Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: color.withValues(alpha: 0.25), width: 1),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => _showLogDetails(log),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(icon, size: 13, color: color),
+                              const SizedBox(width: 4),
+                              Text(
+                                log.level.name.toUpperCase(),
+                                style: TextStyle(
+                                  color: color,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _formatFullDateTime(log.timestamp),
+                          style: TextStyle(
+                            color: isDark ? Colors.grey[500] : Colors.grey[600],
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          log.callerInfo.split('(').first.trim(),
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                            color: Colors.blueAccent.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    SelectableText(
+                      log.message,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontFamily: 'monospace',
+                        color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.article_outlined,
-            size: 64,
-            color: Colors.grey[400],
+            Icons.receipt_long_rounded,
+            size: 56,
+            color: isDark ? Colors.grey[700] : Colors.grey[400],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
-            logs.isEmpty ? Language.get('noLogs') : 'Arama kriterlerine uygun log bulunamadı',
+            _allLogs.isEmpty ? Language.get('noLogs') : 'Arama kriterlerine uygun log bulunamadı.',
             style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
+              fontSize: 14,
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
             ),
           ),
-          if (searchQuery.isNotEmpty || selectedLevel != null) ...[
-            const SizedBox(height: 8),
-            TextButton(
+          if (_searchQuery.isNotEmpty || _selectedLevel != null) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.filter_alt_off_rounded, size: 16),
+              label: const Text('Filtreleri Temizle'),
               onPressed: () {
                 setState(() {
-                  searchQuery = '';
-                  selectedLevel = null;
+                  _searchQuery = '';
+                  _selectedLevel = null;
                   _searchController.clear();
+                  _applyFilters();
                 });
-                _loadLogs();
               },
-              child: const Text('Filtreleri Temizle'),
             ),
           ],
         ],
       ),
     );
   }
-
-  Widget _buildLogCard(LogEntry log, int index) {
-    final color = _getLogLevelColor(log.level);
-    final icon = _getLogLevelIcon(log.level);
-
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: color.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => _showLogDetails(log),
-        onLongPress: () => _copyLogToClipboard(log),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(icon, size: 14, color: color),
-                        const SizedBox(width: 4),
-                        Text(
-                          log.level.name,
-                          style: TextStyle(
-                            color: color,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    _formatTimestamp(log.timestamp),
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                log.message,
-                style: const TextStyle(fontSize: 14),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.code, size: 14, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      log.callerInfo,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                        fontFamily: 'monospace',
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _formatTimestamp(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-
-    if (difference.inDays > 0) {
-      return '${difference.inDays}g önce';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}s önce';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}dk önce';
-    } else {
-      return 'Az önce';
-    }
-  }
-
-  void _showClearDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(Language.get('clearLogs')),
-        content: Text(Language.get('confirmClearLogs')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(Language.get('cancel')),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _clearLogs();
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(Language.get('confirm')),
-          ),
-        ],
-      ),
-    );
-  }
 }
-

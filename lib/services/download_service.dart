@@ -1,25 +1,35 @@
 import 'dart:io';
-import 'package:DiscordStorage/services/path_service.dart';
+import 'package:discord_storage/services/path_service.dart';
 import 'package:http/http.dart' as http;
-import 'package:DiscordStorage/services/logger_service.dart';
+import 'package:discord_storage/services/logger_service.dart';
 import 'dart:convert';
 
 class FileDownloader {
+  /// Verilen URL'den dosyayı indirir.
+  ///
+  /// Döndürülen değer:
+  ///  - Başarılıysa: indirilen gerçek byte sayısı (>= 0)
+  ///  - Hata durumunda: -1
+  ///
+  /// Not: Eski sürüm başarıda 0, hatada 1 döndürüyordu. Bu hatalıydı;
+  /// file_merger.dart `downloadedBytes < 0` ile hata kontrolü yapıyor, dolayısıyla
+  /// 1 döndürüldüğünde hata yakalanmıyordu. Ayrıca hız hesabı için gerçek
+  /// byte sayısına ihtiyaç var.
   Future<int> fileDownload(String url, String fileName) async {
     Logger.info('Downloading file: $url');
     try {
       var response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         await File(fileName).writeAsBytes(response.bodyBytes);
-        Logger.info('File downloaded successfully: $fileName');
-        return 0;
+        Logger.info('File downloaded successfully: $fileName (${response.bodyBytes.length} bytes)');
+        return response.bodyBytes.length; // gerçek byte sayısı
       } else {
         Logger.error('Download failed, status code: ${response.statusCode}');
-        return 1;
+        return -1; // hata göstergesi
       }
     } catch (e) {
       Logger.error('Error downloading file: $e');
-      return 1;
+      return -1; // hata göstergesi
     }
   }
 

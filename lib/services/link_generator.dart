@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:DiscordStorage/services/logger_service.dart';
-import 'package:DiscordStorage/services/discord_service.dart';
-import 'package:DiscordStorage/services/notification_service.dart';
-import 'package:DiscordStorage/services/localization_service.dart';
-import 'package:DiscordStorage/services/upload_service.dart';
+import 'package:discord_storage/services/logger_service.dart';
+import 'package:discord_storage/services/discord_service.dart';
+import 'package:discord_storage/services/notification_service.dart';
+import 'package:discord_storage/services/localization_service.dart';
+import 'package:discord_storage/services/upload_service.dart';
 
 class LinkGenerator {
   final DiscordService _discordService = DiscordService();

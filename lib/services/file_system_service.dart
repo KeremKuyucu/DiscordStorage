@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:DiscordStorage/screens/settings/service.dart';
-import 'package:DiscordStorage/services/discord_service.dart';
-import 'package:DiscordStorage/services/download_service.dart';
-import 'package:DiscordStorage/services/upload_service.dart';
+import 'package:discord_storage/screens/settings/service.dart';
+import 'package:discord_storage/services/discord_service.dart';
+import 'package:discord_storage/services/download_service.dart';
+import 'package:discord_storage/services/upload_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:DiscordStorage/services/logger_service.dart';
+import 'package:discord_storage/services/logger_service.dart';
 import 'package:path_provider/path_provider.dart';
 
 class FileSystemService {
@@ -246,7 +246,7 @@ class FileSystemService {
       final downloader = FileDownloader();
 
       final downloadResult = await downloader.fileDownload(url, fileName);
-      if (downloadResult != 0) {
+      if (downloadResult < 0) {
         Logger.error('Dosya indirilemedi.');
         return false;
       }

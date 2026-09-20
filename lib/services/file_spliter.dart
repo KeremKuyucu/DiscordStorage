@@ -1,20 +1,20 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'package:DiscordStorage/screens/main/screen.dart';
-import 'package:DiscordStorage/screens/settings/service.dart';
-import 'package:DiscordStorage/services/discord_service.dart';
-import 'package:DiscordStorage/services/file_hash_service.dart';
-import 'package:DiscordStorage/services/file_system_service.dart';
-import 'package:DiscordStorage/services/notification_service.dart';
-import 'package:DiscordStorage/services/path_service.dart';
-import 'package:DiscordStorage/services/upload_service.dart';
-import 'package:DiscordStorage/services/logger_service.dart';
+import 'package:discord_storage/screens/main/screen.dart';
+import 'package:discord_storage/screens/settings/service.dart';
+import 'package:discord_storage/services/discord_service.dart';
+import 'package:discord_storage/services/file_hash_service.dart';
+import 'package:discord_storage/services/file_system_service.dart';
+import 'package:discord_storage/services/notification_service.dart';
+import 'package:discord_storage/services/path_service.dart';
+import 'package:discord_storage/services/upload_service.dart';
+import 'package:discord_storage/services/logger_service.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-import 'package:DiscordStorage/services/localization_service.dart';
+import 'package:discord_storage/services/localization_service.dart';
 
 class Filespliter {
   int partSize = 10475274;
@@ -73,7 +73,7 @@ class Filespliter {
         await Future.delayed(const Duration(seconds: 3));
         String hashVal = await fileHash.getFileHash(filePath);
         await File(linksTxt).writeAsString(
-          '$totalParts\n$fileName\n$hashVal\n$SettingsService.createdWebhook\n',
+          '$totalParts\n$fileName\n$hashVal\n${SettingsService.createdWebhook}\n',
         );
         Logger.info('Link file created: $linksTxt');
       }
@@ -154,9 +154,10 @@ class Filespliter {
         Logger.info('Saved to the file system: $fileName');
       });
       await fileSystemService.load();
+      if (!context.mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => DiscordStorageLobi()),
+        MaterialPageRoute(builder: (context) => const DiscordStorageLobi()),
       );
     } catch (e) {
       Logger.error('Error in last steps: $e');

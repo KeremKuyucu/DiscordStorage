@@ -1,14 +1,17 @@
-import 'package:DiscordStorage/services/localization_service.dart';
+import 'package:discord_storage/services/localization_service.dart';
 import 'package:flutter/material.dart';
 import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
 
-import 'package:DiscordStorage/screens/main/screen.dart';
-import 'package:DiscordStorage/screens/settings/screen.dart';
+import 'package:discord_storage/screens/main/screen.dart';
+import 'package:discord_storage/screens/settings/screen.dart';
 
 
 int selectedIndex = 0;
 
 class BottomNavBarWidget extends StatefulWidget {
+  const BottomNavBarWidget({super.key});
+
+  @override
   State<BottomNavBarWidget> createState() => _BottomNavBarWidgetState();
 }
 

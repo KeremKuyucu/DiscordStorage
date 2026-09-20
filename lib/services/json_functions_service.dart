@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:DiscordStorage/services/logger_service.dart';
+import 'package:discord_storage/services/logger_service.dart';
 
 class JsonFunctions {
   Map<String, String> findIds(String jsonStr) {

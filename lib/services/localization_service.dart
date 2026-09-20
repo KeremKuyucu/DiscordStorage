@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
-import 'package:DiscordStorage/services/logger_service.dart';
+import 'package:discord_storage/services/logger_service.dart';
 
 class Language {
   static Map<String, dynamic> _translations = {};

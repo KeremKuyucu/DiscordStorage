@@ -3,7 +3,9 @@
 
 ; === Temel Bilgiler / Basic Info ===
 #define AppName "DiscordStorage"
-#define AppVersion "v0.2.1-alpha"
+#ifndef AppVersion
+  #define AppVersion "v0.5.0-beta"
+#endif
 #define AppPublisher "Kerem Kuyucu"
 #define AppURL "https://github.com/KeremKuyucu/DiscordStorage"
 #define AppExeName "discordstorage.exe"
@@ -33,6 +35,7 @@ SolidCompression=yes
 
 WizardStyle=modern
 PrivilegesRequired=lowest
+
 [Languages]
 Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -54,6 +57,14 @@ Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#AppName}"; Filen
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
+[Registry]
+Root: HKCU; Subkey: "Software\Classes\discordstorage"; ValueType: string; ValueName: ""; ValueData: "URL:DiscordStorage Protocol"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\discordstorage"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\discordstorage\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#AppExeName},0"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\discordstorage\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1"""; Flags: uninsdeletekey
+
 [UninstallDelete]
 ; Kullanıcı ayarlarını veya log dosyalarını kaldır / Delete user settings or logs
 Type: filesandordirs; Name: "{userappdata}\{#AppName}\UserSettings"
+Type: filesandordirs; Name: "{app}\logs"
+Type: filesandordirs; Name: "{userappdata}\{#AppName}\logs"

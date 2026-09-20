@@ -5,25 +5,29 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:theme_mode_builder/theme_mode_builder.dart';
-import 'package:DiscordStorage/services/bottom_bar_service.dart';
-import 'package:DiscordStorage/screens/settings/screen.dart';
-import 'package:DiscordStorage/screens/settings/service.dart';
-import 'package:DiscordStorage/services/file_system_service.dart';
-import 'package:DiscordStorage/services/download_service.dart';
-import 'package:DiscordStorage/services/file_spliter.dart';
-import 'package:DiscordStorage/services/file_merger.dart';
-import 'package:DiscordStorage/services/discord_service.dart';
-import 'package:DiscordStorage/services/path_service.dart';
-import 'package:DiscordStorage/services/logger_service.dart';
-import 'package:DiscordStorage/services/localization_service.dart';
-import 'package:DiscordStorage/services/developer_info.dart';
-import 'package:DiscordStorage/services/update_checker_service.dart';
-import 'package:DiscordStorage/services/link_generator.dart';
-import 'package:DiscordStorage/services/analytics_service.dart';
+import 'package:discord_storage/services/bottom_bar_service.dart';
+import 'package:discord_storage/screens/settings/screen.dart';
+import 'package:discord_storage/screens/settings/service.dart';
+import 'package:discord_storage/services/file_system_service.dart';
+import 'package:discord_storage/services/download_service.dart';
+import 'package:discord_storage/services/file_spliter.dart';
+import 'package:discord_storage/services/file_merger.dart';
+import 'package:discord_storage/services/discord_service.dart';
+import 'package:discord_storage/services/path_service.dart';
+import 'package:discord_storage/services/logger_service.dart';
+import 'package:discord_storage/services/localization_service.dart';
+import 'package:discord_storage/services/developer_info.dart';
+import 'package:discord_storage/services/update_checker_service.dart';
+import 'package:discord_storage/services/link_generator.dart';
+import 'package:discord_storage/services/telemetry_service.dart';
+import 'package:path/path.dart' as path;
 
 class DiscordStorageLobi extends StatefulWidget {
+  final String? initialMessageId;
+  const DiscordStorageLobi({super.key, this.initialMessageId});
+
   @override
-  _DiscordStorageLobiState createState() => _DiscordStorageLobiState();
+  State<DiscordStorageLobi> createState() => _DiscordStorageLobiState();
 }
 
 class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
@@ -64,11 +68,17 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
         MaterialPageRoute(builder: (context) => SettingsPage()),
       );
     }
-    AnalyticsService.sendEventOnce(
+    TelemetryService.sendEventOnce(
       appId: 'discordstorage',
       userId: SettingsService.storageChannelId,
-      eventEndpoint: "/app/start",
+      eventEndpoint: "app_opened",
     );
+
+    if (widget.initialMessageId != null && widget.initialMessageId!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleSharedMessageId(widget.initialMessageId!);
+      });
+    }
   }
 
   // ----------------- Buton Fonksiyonları -----------------
@@ -277,6 +287,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
   }
 
   Future<void> _shareFile(String fileName, String channelId) async {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$fileName ${Language.get('shareFileDownloading')}'),
@@ -289,8 +300,8 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
 
     final messageId = data['messageId'];
     final fileNameFromMessage = data['fileName'] + 'temp.txt';
-    final filePath =
-        await pathHelper.getDownloadsDirectoryPath() + fileNameFromMessage;
+    final downloadsDir = await pathHelper.getDownloadsDirectoryPath();
+    final filePath = path.join(downloadsDir, fileNameFromMessage);
     final channelIdFromMessage = data['channelId'];
 
     final url = await discordService.getFileUrl(
@@ -300,20 +311,21 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
     await fileDownloader.fileDownload(url, filePath);
     final shareUrl = await _linkGenerator.generateShareLinkFromFile(filePath);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$fileName ${Language.get('shareFileUploaded')}')),
-    );
-
     final linkFile = File(filePath);
     if (await linkFile.exists()) {
       await linkFile.delete();
     }
 
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$fileName ${Language.get('shareFileUploaded')}')),
+    );
+
     // İşlem bittikten sonra URL gösteren ve butonlar olan dialog
     if (shareUrl != null) {
       showDialog(
         context: context,
-        builder: (context) {
+        builder: (ctx) {
           return AlertDialog(
             title: Text(Language.get('shareFileUploaded')),
             content: Column(
@@ -326,7 +338,9 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
                   children: [
                     ElevatedButton.icon(
                       onPressed: () async {
-                        await Share.share(shareUrl);
+                        await SharePlus.instance.share(
+                          ShareParams(text: shareUrl),
+                        );
                       },
                       icon: const Icon(Icons.share),
                       label: Text(Language.get('share')),
@@ -334,7 +348,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
                     ElevatedButton.icon(
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: shareUrl));
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        ScaffoldMessenger.of(ctx).showSnackBar(
                           SnackBar(
                             content: Text(Language.get('copiedToClipboard')),
                           ),
@@ -380,10 +394,45 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
 
     if (messageId == null || messageId.isEmpty) return;
 
+    await _startDownloadSharedFile(messageId);
+  }
+
+  Future<void> _handleSharedMessageId(String messageId) async {
+    if (!mounted) return;
+    final shouldDownload = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(Language.get('sharedFileDownload')),
+        content: Text('ID: $messageId\n\nBu dosyayı indirmek istiyor musunuz?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(Language.get('cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(Language.get('ok')),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDownload == true) {
+      await _startDownloadSharedFile(messageId);
+    }
+  }
+
+  Future<void> _startDownloadSharedFile(String messageId) async {
     try {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${Language.get('downloadingFile')} ($messageId)')),
+      );
+
       final filePath = await fileDownloader.sharedFileDownload(messageId);
 
       if (filePath == null) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(Language.get('fileCreationFailed'))),
         );
@@ -391,11 +440,13 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
       }
       await fileMerger.mergeFiles(filePath, true);
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(Language.get('sharedFileDownloaded'))),
       );
     } catch (e, stack) {
       Logger.error('Error: $e\n$stack');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(Language.get('fileCreationFailed'))),
       );
@@ -403,6 +454,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
   }
 
   void _downloadFile(String fileName, String channelId) async {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$fileName ${Language.get('downloadingFile')}')),
     );
@@ -413,8 +465,8 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
 
     final messageId = data['messageId'];
     final fileNameFromMessage = data['fileName'] + 'temp.txt';
-    final filePath =
-        await pathHelper.getDownloadsDirectoryPath() + fileNameFromMessage;
+    final downloadsDir = await pathHelper.getDownloadsDirectoryPath();
+    final filePath = path.join(downloadsDir, fileNameFromMessage);
     final channelIdFromMessage = data['channelId'];
 
     final url = await discordService.getFileUrl(
@@ -430,6 +482,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
       await file.delete();
       Logger.info('$fileNameFromMessage deleted');
     }
+    if (!mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(Language.get('downloadComplete'))));
@@ -440,12 +493,14 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
     if (result != null && result.files.single.path != null) {
       String filePath = result.files.single.path!;
       String linksPath = '${filePath}_links.txt';
+      // ignore: use_build_context_synchronously
       await filespliter.splitFileAndUpload(filePath, linksPath, context);
       final linkFile = File(linksPath);
       if (await linkFile.exists()) {
         await linkFile.delete();
       }
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(Language.get('fileNotSelected'))));
@@ -494,7 +549,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
                 ),
         iconTheme: const IconThemeData(size: 35.0, color: Colors.blue),
         title: Text(
-          currentPath.isEmpty ? 'DiscordStorage' : '${currentPath.join('/')}',
+          currentPath.isEmpty ? 'DiscordStorage' : currentPath.join('/'),
           style: const TextStyle(color: Colors.purple),
         ),
         centerTitle: true,
@@ -533,11 +588,11 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
 
           if (name == '...') {
             return DragTarget<Map<String, dynamic>>(
-              onWillAccept: (_) => currentPath.isNotEmpty,
-              onAccept: (data) {
+              onWillAcceptWithDetails: (_) => currentPath.isNotEmpty,
+              onAcceptWithDetails: (details) {
                 fileSystemService.moveItem(
-                  data['path'],
-                  data['name'],
+                  details.data['path'],
+                  details.data['name'],
                   currentPath.sublist(0, currentPath.length - 1),
                 );
                 fileSystemService.save();
@@ -550,7 +605,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
                     onTap: _goBack,
                     tileColor:
                         candidateData.isNotEmpty
-                            ? Colors.purple.withOpacity(0.2)
+                            ? Colors.purple.withValues(alpha: 0.2)
                             : null,
                   ),
             );
@@ -560,9 +615,9 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
           final isFolder = item['type'] == 'folder';
 
           return DragTarget<Map<String, dynamic>>(
-            onWillAccept: (_) => isFolder,
-            onAccept: (data) {
-              fileSystemService.moveItem(data['path'], data['name'], [
+            onWillAcceptWithDetails: (_) => isFolder,
+            onAcceptWithDetails: (details) {
+              fileSystemService.moveItem(details.data['path'], details.data['name'], [
                 ...currentPath,
                 name,
               ]);
@@ -581,7 +636,7 @@ class _DiscordStorageLobiState extends State<DiscordStorageLobi> {
                     child: Container(
                       padding: EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.deepPurple.withOpacity(0.8),
+                        color: Colors.deepPurple.withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(8),
                         boxShadow: [
                           BoxShadow(color: Colors.black26, blurRadius: 6),

@@ -1,11 +1,11 @@
 import 'dart:io';
-import 'package:DiscordStorage/screens/settings/service.dart';
+import 'package:discord_storage/screens/settings/service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 import 'dart:convert';
-import 'package:DiscordStorage/services/json_functions_service.dart';
-import 'package:DiscordStorage/services/path_service.dart';
-import 'package:DiscordStorage/services/logger_service.dart';
+import 'package:discord_storage/services/json_functions_service.dart';
+import 'package:discord_storage/services/path_service.dart';
+import 'package:discord_storage/services/logger_service.dart';
 import 'package:http_parser/http_parser.dart';
 
 bool debugPrint = false;

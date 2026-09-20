@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
-import 'package:DiscordStorage/screens/settings/service.dart';
+import 'package:discord_storage/screens/settings/service.dart';
 import 'package:http/http.dart' as http;
-import 'package:DiscordStorage/services/logger_service.dart';
+import 'package:discord_storage/services/logger_service.dart';
 
 class DiscordService {
   DiscordService();

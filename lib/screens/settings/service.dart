@@ -1,12 +1,10 @@
-import 'package:DiscordStorage/services/localization_service.dart';
+import 'package:discord_storage/services/localization_service.dart';
+import 'package:discord_storage/services/secure_storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
-import 'package:DiscordStorage/services/discord_service.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:discord_storage/services/discord_service.dart';
 
 class SettingsService {
-  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
-
   static String channelId = '';
   static String messageId = '';
   static String createdWebhook = '';
@@ -26,16 +24,22 @@ class SettingsService {
   static Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
 
-    token = await _secureStorage.read(key: 'bot_token') ?? '';
-    guildId = await _secureStorage.read(key: 'guild_id') ?? '';
-    categoryId = await _secureStorage.read(key: 'category_id') ?? '';
-    storageChannelId = await _secureStorage.read(key: 'storage_channel') ?? '';
+    final rawToken = prefs.getString('bot_token') ?? '';
+    token = SecureStorageService.decrypt(rawToken);
+    // Eski düz metin token varsa otomatik olarak DPAPI ile şifrele
+    if (rawToken.isNotEmpty && !rawToken.startsWith('dpapi:')) {
+      await prefs.setString('bot_token', SecureStorageService.encrypt(token));
+    }
+
+    guildId = prefs.getString('guild_id') ?? '';
+    categoryId = prefs.getString('category_id') ?? '';
+    storageChannelId = prefs.getString('storage_channel') ?? '';
     isDarkMode = prefs.getBool('is_dark_mode') ?? false;
     languageCode = prefs.getString('language_code') ?? 'en';
-    if (storageChannelId.isEmpty) {
+    if (storageChannelId.isEmpty && token.isNotEmpty && guildId.isNotEmpty) {
       String? tempChannel = await _discordService.getOrCreateMainStorageChannel();
       if (tempChannel.isNotEmpty) {
-        await _secureStorage.write(key: 'storage_channel', value: tempChannel);
+        await prefs.setString('storage_channel', tempChannel);
         storageChannelId = tempChannel;
       }
     }
@@ -50,6 +54,7 @@ class SettingsService {
     final isValid = await _discordService.checkAndSaveToken(newToken);
 
     if (!isValid) {
+      if (!context.mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(Language.get('tokenInvalid'))),
       );
@@ -60,10 +65,12 @@ class SettingsService {
     guildId = newGuildId;
     categoryId = newCategoryId;
 
-    await _secureStorage.write(key: 'bot_token', value: token);
-    await _secureStorage.write(key: 'guild_id', value: guildId);
-    await _secureStorage.write(key: 'category_id', value: categoryId);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('bot_token', SecureStorageService.encrypt(token));
+    await prefs.setString('guild_id', guildId);
+    await prefs.setString('category_id', categoryId);
 
+    if (!context.mounted) return false;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(Language.get('tokenValid'))),
     );

@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:DiscordStorage/services/logger_service.dart';
+import 'package:discord_storage/services/logger_service.dart';
 
 class PathHelper {
 
@@ -42,16 +42,6 @@ class PathHelper {
           throw Exception("Could not determine Downloads directory on Windows.");
         }
       }
-    } else if (Platform.isAndroid) {
-      Logger.info('Android platform detected.');
-      // final directory = await getExternalStorageDirectory();
-      final downloadDir = Directory('/storage/emulated/0/Download');
-      if (!await downloadDir.exists()) {
-        Logger.info('Download directory does not exist, creating: ${downloadDir.path}');
-        await downloadDir.create(recursive: true);
-      }
-      Logger.info('Downloads directory: ${downloadDir.path}');
-      return downloadDir.path;
     } else if (Platform.isLinux || Platform.isMacOS) {
       Logger.info('Linux/MacOS platform detected.');
       final home = Platform.environment['HOME'];

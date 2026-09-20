@@ -1,12 +1,12 @@
 import 'dart:io';
 import 'dart:convert';
-import 'package:DiscordStorage/services/download_service.dart';
-import 'package:DiscordStorage/services/file_hash_service.dart';
-import 'package:DiscordStorage/services/notification_service.dart';
-import 'package:DiscordStorage/services/discord_service.dart';
-import 'package:DiscordStorage/services/path_service.dart';
-import 'package:DiscordStorage/services/logger_service.dart';
-import 'package:DiscordStorage/services/localization_service.dart';
+import 'package:discord_storage/services/download_service.dart';
+import 'package:discord_storage/services/file_hash_service.dart';
+import 'package:discord_storage/services/notification_service.dart';
+import 'package:discord_storage/services/discord_service.dart';
+import 'package:discord_storage/services/path_service.dart';
+import 'package:discord_storage/services/logger_service.dart';
+import 'package:discord_storage/services/localization_service.dart';
 
 // Link sınıfını URL'i de içerecek şekilde güncelleyelim.
 class RichLink {

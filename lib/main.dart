@@ -1,36 +1,47 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:theme_mode_builder/theme_mode_builder.dart';
-import 'package:DiscordStorage/screens/main/screen.dart';
-import 'package:DiscordStorage/services/logger_service.dart';
-import 'package:DiscordStorage/services/notification_service.dart';
-import 'package:DiscordStorage/services/permission_service.dart';
-import 'package:DiscordStorage/services/localization_service.dart';
-import 'package:DiscordStorage/screens/settings/service.dart';
+import 'package:discord_storage/screens/main/screen.dart';
+import 'package:discord_storage/services/logger_service.dart';
+import 'package:discord_storage/services/notification_service.dart';
+import 'package:discord_storage/services/localization_service.dart';
+import 'package:discord_storage/screens/settings/service.dart';
+import 'package:discord_storage/services/protocol_service.dart';
 
 
-void main() async {
+void main(List<String> args) async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   await Logger.init();
   Logger.info('Logger initialized.');
+  Logger.info('Application is starting with args: $args');
 
-  WidgetsFlutterBinding.ensureInitialized();
-  Logger.info('Application is starting...');
+  // Windows'ta discordstorage:// protokolünü kaydet
+  if (Platform.isWindows) {
+    ProtocolService.registerWindowsProtocol();
+  }
+
+  // Paylaşım linki ile açılmışsa messageId'yi ayıkla
+  final String? initialMessageId = ProtocolService.parseMessageIdFromArgs(args);
+  if (initialMessageId != null) {
+    Logger.info('Initial message ID from deep link: $initialMessageId');
+  }
 
   // Initialize notifications
   NotificationService.init();
   Logger.info('Notifications initialized.');
 
-  // Check permissions
-  PermissionService.init();
-  Logger.info('Permissions checked.');
-
   await SettingsService.load();
   await Language.load(SettingsService.languageCode);
 
-  runApp(DiscordStorage());
+  runApp(DiscordStorage(initialMessageId: initialMessageId));
   Logger.info('runApp called, application started.');
 }
 
 class DiscordStorage extends StatefulWidget {
+  final String? initialMessageId;
+  const DiscordStorage({super.key, this.initialMessageId});
+
   @override
   State<DiscordStorage> createState() => DiscordStorageState();
 }
@@ -56,7 +67,7 @@ class DiscordStorageState extends State<DiscordStorage> {
               seedColor: Colors.deepPurple,
             ),
           ),
-          home: DiscordStorageLobi(),
+          home: DiscordStorageLobi(initialMessageId: widget.initialMessageId),
         );
       },
     );

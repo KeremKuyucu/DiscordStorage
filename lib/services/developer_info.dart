@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:DiscordStorage/services/localization_service.dart';
+import 'package:discord_storage/services/localization_service.dart';
 
 class DeveloperInfo {
   static Future<void> show(BuildContext context) async {
     final PackageInfo packageInfo = await PackageInfo.fromPlatform();
     final String localVersion = packageInfo.version;
 
+    if (!context.mounted) return;
     showDialog(
       context: context,
       builder: (BuildContext context) {
