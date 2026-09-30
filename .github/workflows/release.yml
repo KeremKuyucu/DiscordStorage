@@ -1,0 +1,327 @@
+# ============================================================
+# DiscordStorage – GitHub Actions Release Pipeline
+# ============================================================
+# Triggers:
+#   - Push of a version tag (v*)
+#   - Manual dispatch (workflow_dispatch)
+#
+# Jobs:
+#   windows  – Windows build + Inno Setup + code sign (windows-latest)
+#   release  – GitHub Release creation with signed installer (ubuntu-latest)
+# ============================================================
+
+name: DiscordStorage Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+  workflow_dispatch:
+    inputs:
+      create_github_release:
+        description: 'Create / update GitHub Release?'
+        required: true
+        default: 'true'
+        type: boolean
+
+# ── Concurrency: cancel in-progress runs for the same ref ───────────────────
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ── Environment variables ───────────────────────────────────────────────────
+env:
+  FLUTTER_CHANNEL: stable
+
+jobs:
+  # ============================================================
+  # JOB: windows
+  # ============================================================
+  windows:
+    name: Windows (Installer + Code Sign)
+    runs-on: windows-latest
+    environment: windows-release
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      installer_name: ${{ steps.inno.outputs.installer_name }}
+      installer_path: ${{ steps.inno.outputs.installer_path }}
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── Flutter SDK ───────────────────────────────────────
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+          cache-key: flutter-${{ env.FLUTTER_CHANNEL }}-${{ hashFiles('pubspec.lock') }}
+
+      # ── Extract version from pubspec.yaml ─────────────────
+      - name: Extract version
+        id: version
+        shell: pwsh
+        run: |
+          $versionLine = (Get-Content pubspec.yaml | Select-String '^version:').ToString()
+          $version = ($versionLine -replace 'version:\s*', '' -replace '\+.*', '').Trim()
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $version"
+
+      # ── Dependencies ──────────────────────────────────────
+      - name: Flutter pub get
+        run: flutter pub get
+
+      # ── Build Windows release ─────────────────────────────
+      - name: Build Flutter Windows (release)
+        run: flutter build windows --release
+
+      # ── Install Inno Setup 6 ──────────────────────────────
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            $iscc = Get-ChildItem "C:\Program Files (x86)" -Recurse -Filter "ISCC.exe" -ErrorAction SilentlyContinue |
+              Select-Object -First 1 -ExpandProperty FullName
+          }
+          if (-not $iscc) { throw "ISCC.exe not found after choco install innosetup" }
+          echo "ISCC_PATH=$iscc" >> $env:GITHUB_ENV
+          Write-Host "Inno Setup Compiler: $iscc"
+
+      # ── Build installer with Inno Setup ───────────────────
+      - name: Build installer (Inno Setup)
+        id: inno
+        shell: pwsh
+        run: |
+          $version     = "${{ steps.version.outputs.version }}"
+          $outDir      = "${{ github.workspace }}\installer_output"
+          $projectRoot = "${{ github.workspace }}"
+
+          New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+
+          & "${{ env.ISCC_PATH }}" `
+            "/DProjectRoot=$projectRoot" `
+            "/DOutputDir=$outDir" `
+            "/DAppVersion=$version" `
+            "$projectRoot\InnoSetup.iss"
+
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed (ExitCode=$LASTEXITCODE)" }
+
+          $installer = Get-ChildItem -Path $outDir -Filter "*.exe" |
+            Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $installer) { throw "Installer .exe not found in $outDir" }
+
+          $sizeMB = [math]::Round($installer.Length / 1MB, 2)
+          Write-Host "Installer: $($installer.Name) (${sizeMB} MB)"
+
+          echo "INSTALLER_PATH=$($installer.FullName)" >> $env:GITHUB_ENV
+          echo "installer_name=$($installer.Name)" >> $env:GITHUB_OUTPUT
+          echo "installer_path=$($installer.FullName)" >> $env:GITHUB_OUTPUT
+
+      # ── Write PFX certificate from secret ─────────────────
+      - name: Write PFX certificate
+        if: ${{ env.WINDOWS_PFX_BASE64 != '' }}
+        shell: pwsh
+        env:
+          WINDOWS_PFX_BASE64: ${{ secrets.WINDOWS_PFX_BASE64 }}
+        run: |
+          $clean = ($env:WINDOWS_PFX_BASE64 -replace '\s+', '')
+          $pfxBytes = [Convert]::FromBase64String($clean)
+          [IO.File]::WriteAllBytes("${{ github.workspace }}\signing.pfx", $pfxBytes)
+          Write-Host "PFX written."
+
+      # ── Locate SignTool ───────────────────────────────────
+      - name: Locate SignTool
+        if: ${{ env.WINDOWS_PFX_BASE64 != '' }}
+        shell: pwsh
+        env:
+          WINDOWS_PFX_BASE64: ${{ secrets.WINDOWS_PFX_BASE64 }}
+        run: |
+          $candidates = @(
+            "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe",
+            "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe",
+            "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe",
+            "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x86\signtool.exe",
+            "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x86\signtool.exe"
+          )
+
+          $found = $null
+          foreach ($c in $candidates) {
+            if (Test-Path $c) { $found = $c; break }
+          }
+
+          if (-not $found) {
+            $found = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -notmatch 'arm' } |
+              Sort-Object LastWriteTime -Descending |
+              Select-Object -First 1 -ExpandProperty FullName
+          }
+
+          if (-not $found) { throw "signtool.exe not found on runner" }
+          echo "SIGNTOOL_PATH=$found" >> $env:GITHUB_ENV
+          Write-Host "SignTool: $found"
+
+      # ── Sign installer (SHA-256 + timestamp) ─────────────
+      - name: Sign installer
+        if: ${{ env.WINDOWS_PFX_BASE64 != '' }}
+        shell: pwsh
+        env:
+          WINDOWS_PFX_BASE64: ${{ secrets.WINDOWS_PFX_BASE64 }}
+          WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
+        run: |
+          $timestampServers = @(
+            "http://timestamp.sectigo.com",
+            "http://timestamp.digicert.com",
+            "http://tsa.starfieldtech.com",
+            "http://timestamp.globalsign.com/tsa/r6advanced1"
+          )
+
+          $pfxPath      = "${{ github.workspace }}\signing.pfx"
+          $pfxPassword  = if ($env:WINDOWS_PFX_PASSWORD) { $env:WINDOWS_PFX_PASSWORD.Trim() } else { "" }
+          if (-not $pfxPassword) { throw "WINDOWS_PFX_PASSWORD secret is missing or empty." }
+          $installer    = "${{ env.INSTALLER_PATH }}"
+          $signtool     = "${{ env.SIGNTOOL_PATH }}"
+
+          $signed = $false
+          foreach ($ts in $timestampServers) {
+            Write-Host "Trying timestamp server: $ts"
+            & $signtool sign /fd SHA256 /tr $ts /td SHA256 /f $pfxPath /p $pfxPassword $installer 2>&1
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "Signed successfully with $ts"
+              $signed = $true
+              break
+            }
+            Write-Host "  Timestamp server failed, trying next..."
+          }
+
+          if (-not $signed) {
+            throw "All timestamp servers failed. Release signing aborted."
+          }
+
+          # Import certificate to Root store so signtool verify can validate the chain
+          try {
+            $secPass = ConvertTo-SecureString $pfxPassword -AsPlainText -Force
+            Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\LocalMachine\Root -Password $secPass | Out-Null
+            Write-Host "Certificate added to LocalMachine\Root for verification."
+          } catch {
+            Write-Warning "Could not import certificate to Root store: $_"
+          }
+
+          # Verify signature
+          & $signtool verify /pa /v $installer 2>&1
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Signature verified successfully."
+          } else {
+            Write-Warning "Installer is signed, but root chain verification returned non-zero (expected for self-signed certificates)."
+          }
+          Write-Host "Signing complete."
+
+      # ── Clean up PFX ─────────────────────────────────────
+      - name: Remove PFX
+        if: always()
+        shell: pwsh
+        run: Remove-Item -Path "${{ github.workspace }}\signing.pfx" -Force -ErrorAction SilentlyContinue
+
+      # ── Upload installer artifact ─────────────────────────
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-${{ steps.version.outputs.version }}
+          path: ${{ env.INSTALLER_PATH }}
+          retention-days: 30
+
+  # ============================================================
+  # JOB: release
+  # ============================================================
+  release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    needs: [windows]
+    if: >
+      github.event_name == 'push' ||
+      github.event.inputs.create_github_release == 'true'
+    permissions:
+      contents: write
+    environment: production
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── Set up Python ─────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # ── Generate release notes via Gemini API if missing ───
+      - name: Generate release notes (Gemini API)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          VERSION="${{ needs.windows.outputs.version }}"
+          NOTES_FILE="RELEASE_${VERSION}.md"
+
+          if [ -f "$NOTES_FILE" ]; then
+            echo "Release notes already exist in repository: $NOTES_FILE"
+          elif [ -n "$GEMINI_API_KEY" ]; then
+            echo "Release notes missing. Generating automatically with Gemini API for v${VERSION}..."
+            python scripts/generate_release_notes.py --engine gemini --version "$VERSION"
+          else
+            echo "GEMINI_API_KEY not configured and release notes not present; using standard release info."
+          fi
+
+      # ── Determine release metadata ────────────────────────
+      - name: Determine release metadata
+        id: meta
+        run: |
+          VERSION="${{ needs.windows.outputs.version }}"
+          TAG="v${VERSION}"
+          TITLE="DiscordStorage v${VERSION}"
+          NOTES_FILE="RELEASE_${VERSION}.md"
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "title=${TITLE}" >> "$GITHUB_OUTPUT"
+          echo "notes_file=${NOTES_FILE}" >> "$GITHUB_OUTPUT"
+
+          if [ -f "$NOTES_FILE" ]; then
+            echo "has_notes=true" >> "$GITHUB_OUTPUT"
+            echo "Found release notes: $NOTES_FILE"
+          else
+            echo "has_notes=false" >> "$GITHUB_OUTPUT"
+            echo "No release notes file found for $NOTES_FILE, using generic description."
+          fi
+
+      # ── Download Windows installer artifact ───────────────
+      - name: Download Windows installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer-${{ needs.windows.outputs.version }}
+          path: release-assets/
+
+      # ── Create GitHub Release ─────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.title }}
+          body_path: ${{ steps.meta.outputs.has_notes == 'true' && steps.meta.outputs.notes_file || '' }}
+          body: ${{ steps.meta.outputs.has_notes != 'true' && format('DiscordStorage {0} – automated release.', steps.meta.outputs.tag) || '' }}
+          files: |
+            release-assets/*.exe
+          draft: false
+          prerelease: ${{ contains(needs.windows.outputs.version, 'beta') || contains(needs.windows.outputs.version, 'alpha') }}
+          generate_release_notes: ${{ steps.meta.outputs.has_notes != 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

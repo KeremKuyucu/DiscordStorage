@@ -4,16 +4,25 @@
 ; === Temel Bilgiler / Basic Info ===
 #define AppName "DiscordStorage"
 #ifndef AppVersion
-  #define AppVersion "v0.5.0-beta"
+  #define AppVersion "0.5.0-beta"
 #endif
 #define AppPublisher "Kerem Kuyucu"
 #define AppURL "https://github.com/KeremKuyucu/DiscordStorage"
 #define AppExeName "discordstorage.exe"
 
 ; === Derleme Ayarları / Build Configuration ===
-#define SourcePath "build\\windows\\x64\\runner\\Release"
-#define LogoFile "assets\\logo.ico"
-#define OutputPath "installers"
+#ifndef ProjectRoot
+  #define ProjectRoot "."
+#endif
+#ifndef OutputDir
+  #define OutputDir ProjectRoot + "\\installers"
+#endif
+#ifndef SourcePath
+  #define SourcePath ProjectRoot + "\\build\\windows\\x64\\runner\\Release"
+#endif
+#ifndef LogoFile
+  #define LogoFile ProjectRoot + "\\assets\\logo.ico"
+#endif
 
 [Setup]
 AppId={{C6D2D8F6-9634-4A82-A558-75F7A43C21E3}}
@@ -27,7 +36,7 @@ AppUpdatesURL={#AppURL}
 DefaultDirName={userappdata}\{#AppName}
 DefaultGroupName={#AppName}
 
-OutputDir={#OutputPath}
+OutputDir={#OutputDir}
 OutputBaseFilename={#AppName}_{#AppVersion}_Installer
 
 Compression=lzma2
