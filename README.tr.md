@@ -229,14 +229,8 @@ flutter build windows --release
 Derlenen dosyalar şu dizinde oluşur:
 `build\windows\x64\runner\Release\`
 
-### 5. Otomatik Build ve Kurulum Betikleri
-```powershell
-# Hızlı derleme
-.\build.bat
-
-# Veya gelişmiş PowerShell yöneticisi
-powershell -ExecutionPolicy Bypass -File .\build.ps1
-```
+### 5. Otomatik CI/CD Sürüm Dağıtımı
+Proje, GitHub Actions (`.github/workflows/release.yml`) ile tam otomatik çalışmaktadır. Yeni bir sürüm etiketi (`v*`) push edildiğinde Windows installer otomatik olarak derlenir, Inno Setup ile paketlenir, imzalanır ve GitHub Releases üzerinde yayınlanır.
 
 ---
 

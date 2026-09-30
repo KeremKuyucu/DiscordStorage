@@ -231,15 +231,8 @@ flutter build windows --release
 The compiled binaries will be output to:
 `build\windows\x64\runner\Release\`
 
-### 5. Automated Build & Packaging Script
-You can use the built-in PowerShell automation scripts:
-```powershell
-# Quick build
-.\build.bat
-
-# Or run the PowerShell build orchestrator
-powershell -ExecutionPolicy Bypass -File .\build.ps1
-```
+### 5. Automated CI/CD Release Pipeline
+The project is fully integrated with GitHub Actions (`.github/workflows/release.yml`). Pushing a version tag (`v*`) automatically builds the release binary, packages the Windows installer with Inno Setup, code-signs the executable, generates release notes via Gemini, and publishes a new GitHub Release.
 
 ---
 
