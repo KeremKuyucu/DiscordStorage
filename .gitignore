@@ -163,3 +163,4 @@ app.*.symbols
 installers/
 installer_output/
 signing.pfx
+RELEASE_*.md
