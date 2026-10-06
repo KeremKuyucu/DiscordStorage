@@ -36,7 +36,7 @@
 - [✨ Key Features](#-key-features)
 - [🏗️ How It Works (Architecture)](#️-how-it-works-architecture)
 - [🔐 Security & Privacy (DPAPI)](#-security--privacy-dpapi)
-- [🔗 Custom Protocol & Deep Linking](#-custom-protocol--deep-linking)
+- [🔗 Web Share Portal & Deep Linking (`discordstorage://`)](#-web-share-portal--deep-linking-discordstorage)
 - [🚀 Getting Started](#-getting-started)
   - [Prerequisites](#prerequisites)
   - [Discord Bot Configuration](#discord-bot-configuration)
@@ -83,7 +83,7 @@ DiscordStorage was born as an engineering curiosity and technical exploration. T
 | 🔐 **Windows DPAPI Security** | Bot tokens are encrypted using the Windows Data Protection API (`CryptProtectData`) tied to your Windows user account. Disks store zero plaintext tokens. |
 | ⚡ **Real-Time Transfer Metrics** | Live speed indicators (MB/s), visual progress bars, remaining part counters, and estimated time of completion (ETA). |
 | 🔔 **Native Windows Notifications** | Powered by `local_notifier` with intelligent throttling and silent progress indicators to eliminate notification spam. |
-| 🔗 **Deep Linking Protocol** | Registers the `discordstorage://` protocol in Windows HKCU registry for 1-click downloads via message IDs or links. |
+| 🔗 **Web Sharing & Deep Linking** | `discordstorage-share` proxy web portal and `discordstorage://` protocol enable 1-click downloads; redirects to GitHub if app is not installed. |
 | 🪵 **Interactive Log Streamer** | In-app diagnostic hub with live streaming, log level filtering (Debug/Info/Warn/Error), clipboard copy, and quick Notepad/Explorer access. |
 | 🌐 **Bilingual & Themed** | Full Turkish (🇹🇷) and English (🇺🇸) localization with seamless Dark and Light theme switching. |
 | 🔄 **Auto-Update Checker** | Notifies you directly in-app when newer releases are published on GitHub. |
@@ -143,18 +143,26 @@ Unlike simple storage scripts that leave Discord bot tokens in plaintext JSON or
 
 ---
 
-## 🔗 Custom Protocol & Deep Linking
+## 🔗 Web Share Portal & Deep Linking (`discordstorage://`)
 
+DiscordStorage features a seamless file sharing architecture combining a lightweight web proxy portal with native Windows deep linking:
+
+### 🌐 Web Sharing Portal (`discordstorage-share.vercel.app`)
+When you share a file within the app, a web link is automatically generated: `https://discordstorage-share.vercel.app/<MESSAGE_ID>`.
+- **Proxy Architecture:** The web server does not host large binary files. It functions strictly as a lightweight proxy/mediator for the file manifest (`links.txt`), containing metadata, SHA-256 checksums, and Discord CDN part links. The actual file chunks remain securely hosted on Discord.
+- **If DiscordStorage is Installed:** Clicking the **"Open in DiscordStorage"** button triggers the `discordstorage://<MESSAGE_ID>` protocol, copies the ID to the clipboard as a fallback, and automatically prompts the user to download the file inside the desktop app.
+- **If DiscordStorage is Not Installed:** The landing page directs the recipient to **GitHub Releases** to download the application, provides a one-click copy button for the Message ID, and explains the 3 steps to download once installed.
+
+### 🔗 Custom Protocol (`discordstorage://`)
 DiscordStorage registers the `discordstorage://` protocol in the Windows Current User Registry (`HKCU\Software\Classes\discordstorage`) during initialization—**no Administrator privileges required**.
 
 ### Usage:
+- **Via Web Portal:** Click "Open in DiscordStorage" on `discordstorage-share.vercel.app/<MESSAGE_ID>`
 - **Protocol URI:** `discordstorage://<MESSAGE_ID>`
 - **Command Line:** `discordstorage.exe <MESSAGE_ID>`
+- **In-App ID Download:** Click the top-bar **"↓ Download"** button and paste the copied Message ID
 
 When opened via browser or command line with a valid 17–20 digit Discord Snowflake ID, DiscordStorage automatically detects the target file and prompts you to download and reconstruct it immediately.
-
-> [!NOTE]
-> The legacy third-party web gateway (`discordStorage-share`) has been deprecated. Shared files are downloaded directly using Discord message IDs or native `discordstorage://` links.
 
 ---
 
@@ -279,5 +287,5 @@ Contributions, issues, and feature requests are welcome!
 - **License:** Distributed under the **GNU General Public License v3.0 (GPL-3.0)**. See [`LICENSE`](LICENSE) for complete terms.
 
 <div align="center">
-  <sub>Made with ❤️ in Türkiye • Designed for Windows</sub>
+  <sub>Made with ❤️ in Türkiye</sub>
 </div>

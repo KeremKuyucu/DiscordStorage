@@ -36,7 +36,7 @@
 - [✨ Temel Özellikler](#-temel-özellikler)
 - [🏗️ Nasıl Çalışır? (Mimari)](#️-nasıl-çalışır-mimari)
 - [🔐 Güvenlik ve Gizlilik (Windows DPAPI)](#-güvenlik-ve-gizlilik-windows-dpapi)
-- [🔗 Özel URL Protokolü ve Derin Bağlantı (`discordstorage://`)](#-özel-url-protokolü-ve-derin-bağlantı-discordstorage)
+- [🔗 Web Paylaşım Portalı ve Derin Bağlantı (`discordstorage://`)](#-web-paylaşım-portalı-ve-derin-bağlantı-discordstorage)
 - [🚀 Başlangıç ve Kurulum](#-başlangıç-ve-kurulum)
   - [Gereksinimler](#gereksinimler)
   - [Discord Bot Yapılandırması](#discord-bot-yapılandırması)
@@ -83,7 +83,7 @@ DiscordStorage, teknik bir merak ve mühendislik deneyi olarak hayata geçirildi
 | 🔐 **Windows DPAPI Şifreleme** | Bot tokeni Windows Veri Koruma API'si (`CryptProtectData`) ile kullanıcı hesabına özel şifrelenir; diskte asla açık metin tutulmaz. |
 | ⚡ **Canlı Aktarım İstatistikleri** | Gerçek zamanlı aktarım hızı (MB/s), kalan süre (ETA), parça sayacı ve ilerleme çubuğu. |
 | 🔔 **Yerel Windows Bildirimleri** | `local_notifier` ile sessiz ilerleme bildirimleri ve akıllı sınırlama (throttling) sayesinde bildirim kirliliği engellenir. |
-| 🔗 **Derin Bağlantı (Deep Link)** | `discordstorage://` protokolü Windows HKCU Kayıt Defteri'ne işlenir; bağlantıya tıklandığında indirme işlemi anında başlar. |
+| 🔗 **Web Paylaşımı & Derin Bağlantı** | `discordstorage-share` vekil (proxy) web portalı ve `discordstorage://` protokolü ile tek tıkla indirme; uygulama yoksa GitHub'a yönlendirme. |
 | 🪵 **Canlı Log Görüntüleyici** | Seviye filtreleme (Debug/Info/Warn/Error), arama kutusu, kopyalama, Not Defteri ve Dosya Gezgini kısayolları. |
 | 🌐 **İki Dilli & Temalı Arayüz** | Türkçe ve İngilizce tam yerelleştirme, dinamik Açık/Koyu tema geçişi. |
 | 🔄 **Otomatik Güncelleme** | GitHub üzerindeki yeni sürümleri uygulama açılışında otomatik kontrol eder. |
@@ -141,18 +141,26 @@ Bot tokenleri düz metin dosyalarında veya güvensiz JSON yapılarında **sakla
 
 ---
 
-## 🔗 Özel URL Protokolü ve Derin Bağlantı (`discordstorage://`)
+## 🔗 Web Paylaşım Portalı ve Derin Bağlantı (`discordstorage://`)
 
+DiscordStorage, modern bir web köprüsü (landing page / proxy) ile yerel Windows derin bağlantı (deep linking) sistemini birleştiren pratik ve güvenli bir dosya paylaşım mimarisine sahiptir:
+
+### 🌐 Web Paylaşım Portalı (`discordstorage-share.vercel.app`)
+Uygulama içerisinden bir dosyayı paylaştığınızda otomatik olarak `https://discordstorage-share.vercel.app/<MESAJ_ID>` şeklinde bir web bağlantısı üretilir:
+- **Vekil (Proxy) Mimarisi:** Web paylaşım sunucusu gigabaytlarca boyuttaki asıl dosyaları kendi sunucularında barındırmaz. Yalnızca dosya adı, SHA-256 doğrulama kodu ve Discord parça bağlantılarını içeren manifesto metnini (`links.txt`) bir vekil (proxy/köprü) olarak taşır. Asıl ikili dosya parçaları Discord CDN üzerinde kalmaya devam eder.
+- **Uygulama Yüklüyse:** Ziyaretçi sayfadaki **"DiscordStorage'da Aç"** butonuna bastığında `discordstorage://<MESAJ_ID>` özel protokolü tetiklenir, dosya kimliği güvenlik amacıyla panoya kopyalanır ve masaüstü uygulamasında indirme onay penceresi anında açılır.
+- **Uygulama Yüklü Değilse:** Web sayfası ziyaretçiyi doğrudan **GitHub Releases** sayfasına yönlendirerek uygulamayı indirmesini sağlar. Ayrıca dosya kimliğini (ID) tek tıkla kopyalama ve uygulama kurulduğunda indirmeyi tamamlamayı anlatan adım adım bir rehber sunar.
+
+### 🔗 Özel URL Protokolü (`discordstorage://`)
 DiscordStorage, açılışta **yönetici yetkisi gerektirmeden** Windows Kullanıcı Kayıt Defteri'ne (`HKCU\Software\Classes\discordstorage`) protokol kaydını yapar.
 
 ### Kullanım Biçimleri:
-- **Tarayıcı / Bağlantı:** `discordstorage://<MESAJ_KIMLIGI>`
+- **Web Portalı Üzerinden:** `discordstorage-share.vercel.app/<MESAJ_ID>` sayfasındaki "DiscordStorage'da Aç" butonuyla
+- **Doğrudan Protokol:** `discordstorage://<MESAJ_KIMLIGI>`
 - **Komut Satırı:** `discordstorage.exe <MESAJ_KIMLIGI>`
+- **Uygulama İçi ID ile:** Üst bardaki **"↓ İndir"** butonuna tıklayıp kopyalanan mesaj kimliğini yapıştırarak
 
 17–20 haneli bir Discord mesaj kimliği tespit edildiğinde uygulama otomatik olarak dosyayı tanır ve kullanıcıya indirme onay penceresini açar.
-
-> [!NOTE]
-> Eski harici web paylaşım sunucusu (`discordStorage-share`) kapatılmıştır. Paylaşılan dosyalar artık doğrudan Discord mesaj kimlikleri veya yerel `discordstorage://` protokolü üzerinden indirilir.
 
 ---
 
@@ -276,5 +284,5 @@ Hata bildirimleri, fikirler ve çekme istekleri (Pull Request) memnuniyetle kar�
 - **Lisans:** Bu proje **GNU General Public License v3.0 (GPL-3.0)** ile korunmaktadır. Ayrıntılar için [`LICENSE`](LICENSE) dosyasını inceleyebilirsiniz.
 
 <div align="center">
-  <sub>Made with ❤️ in Türkiye • Designed for Windows</sub>
+  <sub>Made with ❤️ in Türkiye</sub>
 </div>
