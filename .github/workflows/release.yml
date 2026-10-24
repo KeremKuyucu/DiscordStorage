@@ -110,7 +110,7 @@ jobs:
             "/DProjectRoot=$projectRoot" `
             "/DOutputDir=$outDir" `
             "/DAppVersion=$version" `
-            "$projectRoot\InnoSetup.iss"
+            "$projectRoot\.github\InnoSetup.iss"
 
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed (ExitCode=$LASTEXITCODE)" }
 
@@ -276,7 +276,7 @@ jobs:
             echo "Release notes already exist in repository: $NOTES_FILE"
           elif [ -n "$GEMINI_API_KEY" ]; then
             echo "Release notes missing. Generating automatically with Gemini API for v${VERSION}..."
-            python scripts/generate_release_notes.py --engine gemini --version "$VERSION"
+            python .github/scripts/generate_release_notes.py --engine gemini --version "$VERSION"
           else
             echo "GEMINI_API_KEY not configured and release notes not present; using standard release info."
           fi

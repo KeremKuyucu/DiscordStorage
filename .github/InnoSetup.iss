@@ -4,7 +4,21 @@
 ; === Temel Bilgiler / Basic Info ===
 #define AppName "DiscordStorage"
 #ifndef AppVersion
-  #define AppVersion "0.5.0-beta"
+  #define FileHandle
+  #define FileLine
+  #define TempLine
+  #define AppVersion ""
+  #if FileHandle = FileOpen(AddBackslash(SourcePath) + "..\pubspec.yaml")
+    #for {FileLine = ""; !FileEof(FileHandle); FileLine = FileRead(FileHandle)} \
+      Pos("version:", Trim(FileLine)) == 1 ? ( \
+        TempLine = Trim(Copy(Trim(FileLine), 9)), \
+        Pos("+", TempLine) > 0 ? (AppVersion = Copy(TempLine, 1, Pos("+", TempLine) - 1)) : (AppVersion = TempLine) \
+      ) : 0
+    #expr FileClose(FileHandle)
+  #endif
+  #if AppVersion == ""
+    #define AppVersion "0.5.0-beta"
+  #endif
 #endif
 #define AppPublisher "Kerem Kuyucu"
 #define AppURL "https://github.com/KeremKuyucu/DiscordStorage"
@@ -12,16 +26,16 @@
 
 ; === Derleme Ayarları / Build Configuration ===
 #ifndef ProjectRoot
-  #define ProjectRoot "."
+  #define ProjectRoot AddBackslash(SourcePath) + ".."
 #endif
 #ifndef OutputDir
-  #define OutputDir ProjectRoot + "\\installers"
+  #define OutputDir ProjectRoot + "\installers"
 #endif
 #ifndef SourcePath
-  #define SourcePath ProjectRoot + "\\build\\windows\\x64\\runner\\Release"
+  #define SourcePath ProjectRoot + "\build\windows\x64\runner\Release"
 #endif
 #ifndef LogoFile
-  #define LogoFile ProjectRoot + "\\assets\\logo.ico"
+  #define LogoFile ProjectRoot + "\assets\logo.ico"
 #endif
 
 [Setup]
